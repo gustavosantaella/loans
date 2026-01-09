@@ -1,7 +1,7 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DataService } from '../../services/data.service';
-import { Client, Loan, Payment } from '../../models/interfaces';
+import { Client, Loan, Payment, Partner } from '../../models/interfaces';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 
@@ -100,12 +100,12 @@ import { ActivatedRoute } from '@angular/router';
             <h4 class="text-2xl font-black text-slate-800">Parámetros del Crédito</h4>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
               <div class="space-y-2">
-                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Capital (USD)</label>
-                <input type="number" [(ngModel)]="newLoan.monto" placeholder="0.00" class="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:bg-white transition-all duration-300 font-bold text-lg">
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Monto del Préstamo</label>
+                <input type="number" [(ngModel)]="newLoan.monto" (ngModelChange)="calculateMyShare()" placeholder="0.00" class="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:bg-white transition-all duration-300 font-bold text-lg">
               </div>
               <div class="space-y-2">
-                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tasa (%)</label>
-                <input type="number" [(ngModel)]="newLoan.porcentaje" placeholder="%" class="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:bg-white transition-all duration-300 font-bold text-lg text-blue-600">
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tasa Total (%)</label>
+                <input type="number" [(ngModel)]="newLoan.porcentaje" (ngModelChange)="calculateMyShare()" placeholder="%" class="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:bg-white transition-all duration-300 font-bold text-lg text-blue-600">
               </div>
               <div class="space-y-2">
                 <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Vencimiento</label>
@@ -119,6 +119,63 @@ import { ActivatedRoute } from '@angular/router';
                 </select>
               </div>
             </div>
+
+            <!-- Socio / Inversionista Section -->
+            <div class="p-6 bg-purple-50 rounded-3xl border border-purple-100 space-y-6">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+                <label class="text-xs font-black text-purple-600 uppercase tracking-widest">Participación de Socio</label>
+              </div>
+              
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                <div class="space-y-2">
+                   <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Socio Inversionista</label>
+                   <select [(ngModel)]="newLoan.partnerId" (ngModelChange)="calculateMyShare()" class="w-full px-5 py-4 bg-white border-none rounded-2xl focus:ring-4 focus:ring-purple-500/10 transition-all duration-300 font-bold text-slate-700">
+                     <option [ngValue]="null">-- Ninguno --</option>
+                     <option *ngFor="let p of partners" [value]="p.id">{{ p.nombre }}</option>
+                   </select>
+                </div>
+
+                <div *ngIf="newLoan.partnerId" class="space-y-2 animate-in fade-in slide-in-from-left-2">
+                   <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Ganancia del Socio (%)</label>
+                   <div class="relative">
+                     <input type="number" [(ngModel)]="newLoan.partnerPercentage" (ngModelChange)="calculateMyShare()" placeholder="0" class="w-full px-5 py-4 bg-white border-none rounded-2xl focus:ring-4 focus:ring-purple-500/10 transition-all duration-300 font-bold text-purple-600">
+                     <span class="absolute right-5 top-1/2 -translate-y-1/2 font-bold text-slate-300">%</span>
+                   </div>
+                   <div class="px-2 text-right" *ngIf="partnerProfitAmount > 0">
+                      <span class="text-[10px] font-bold text-slate-400">Ganancia: </span>
+                      <span class="text-xs font-black text-purple-600">{{ partnerProfitAmount | currency }}</span>
+                   </div>
+                </div>
+
+                <div *ngIf="newLoan.partnerId" class="space-y-2 animate-in fade-in slide-in-from-left-2 delay-75">
+                   <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Capital del Socio</label>
+                   <div class="relative">
+                     <span class="absolute left-5 top-1/2 -translate-y-1/2 font-bold text-slate-300">$</span>
+                     <input type="number" [(ngModel)]="newLoan.partnerCapital" (ngModelChange)="calculateMyShare()" placeholder="0.00" class="w-full pl-9 pr-5 py-4 bg-white border-none rounded-2xl focus:ring-4 focus:ring-purple-500/10 transition-all duration-300 font-bold text-purple-600">
+                   </div>
+                </div>
+
+                <!-- Fields for "My Share" -->
+                <div *ngIf="newLoan.partnerId" class="space-y-2 animate-in fade-in slide-in-from-left-2 delay-100">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Mi Ganancia / Capital</label>
+                    <div class="flex flex-col gap-1">
+                        <div class="flex justify-between items-center px-4 py-2 bg-blue-50/50 rounded-xl">
+                            <span class="text-xs font-bold text-slate-400">Ganancia</span>
+                            <div class="text-right">
+                                <span class="font-black text-blue-600 mr-2">{{ myShare.profit | currency }}</span>
+                                <span class="text-[10px] font-bold text-blue-400">({{ myShare.percentage | number:'1.0-2' }}%)</span>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center px-4 py-2 bg-blue-50/50 rounded-xl">
+                            <span class="text-xs font-bold text-slate-400">Capital</span>
+                            <span class="font-black text-blue-600">{{ myShare.capital | currency }}</span>
+                        </div>
+                    </div>
+                 </div>
+              </div>
+            </div>
+
             <div class="flex gap-4">
                <button (click)="showLoanForm = false" class="px-8 py-4 text-slate-400 font-black uppercase tracking-widest text-xs hover:text-slate-600">Descartar</button>
                <button (click)="addLoan()" class="flex-grow bg-blue-600 hover:bg-blue-700 text-white py-5 rounded-2xl font-black shadow-xl shadow-blue-500/20 transition-all active:scale-95">GENERAR PRÉSTAMO</button>
@@ -151,7 +208,12 @@ import { ActivatedRoute } from '@angular/router';
                     </td>
                     <td class="px-8 py-6">
                       <p class="font-black text-slate-800">{{ loan.monto | currency }}</p>
-                      <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{{ loan.porcentaje }}% Int.</p>
+                      <div class="flex flex-col gap-0.5 mt-1">
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{{ loan.porcentaje }}% Int.</p>
+                        <p class="text-[10px] text-emerald-600 font-bold uppercase tracking-widest">
+                          Ganancia: {{ (loan.monto * (loan.porcentaje / 100)) | currency }}
+                        </p>
+                      </div>
                     </td>
                     <td class="px-8 py-6 text-right">
                       <span class="text-lg font-black text-blue-600">{{ loan.total | currency }}</span>
@@ -228,17 +290,56 @@ import { ActivatedRoute } from '@angular/router';
               <p class="text-emerald-100 text-sm opacity-80 mt-1">Préstamo #{{selectedLoanForPayment?.id}}</p>
             </div>
             <div class="p-10 space-y-8">
-              <div class="bg-rose-50 p-6 rounded-3xl flex justify-between items-center">
-                <span class="text-[10px] font-black text-rose-500 uppercase tracking-widest">Saldo Actual</span>
-                <span class="text-2xl font-black text-rose-600">{{ currentBalance | currency }}</span>
+              <div class="bg-rose-50 p-6 rounded-3xl space-y-3">
+                <div class="flex justify-between items-center">
+                  <span class="text-[10px] font-black text-rose-500 uppercase tracking-widest">Saldo Actual</span>
+                  <span class="text-2xl font-black text-rose-600">{{ currentBalance | currency }}</span>
+                </div>
+                
+                <!-- Breakdown -->
+                <div *ngIf="paymentBreakdown.partner > 0" class="pt-3 border-t border-rose-100/50 flex flex-col gap-1">
+                  <div class="flex justify-between items-center">
+                    <span class="text-[10px] font-bold text-rose-400">Socio</span>
+                    <span class="text-xs font-bold text-rose-500">{{ paymentBreakdown.partner | currency }}</span>
+                  </div>
+                  <div class="flex justify-between items-center">
+                    <span class="text-[10px] font-bold text-rose-400">Mi Parte</span>
+                    <span class="text-xs font-bold text-rose-500">{{ paymentBreakdown.me | currency }}</span>
+                  </div>
+                </div>
               </div>
-              <div class="space-y-2">
-                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Monto a abonar (USD)</label>
-                <input type="number" [(ngModel)]="newPaymentAmount" class="w-full px-5 py-6 bg-slate-50 border-none rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:bg-white transition-all font-black text-3xl text-emerald-600" placeholder="0.00">
+              <div class="space-y-4">
+                <div class="space-y-2">
+                  <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Monto a abonar (USD)</label>
+                  <input type="number" [(ngModel)]="newPaymentAmount" (ngModelChange)="calculatePaymentDistribution()" class="w-full px-5 py-6 bg-slate-50 border-none rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:bg-white transition-all font-black text-3xl text-emerald-600" placeholder="0.00">
+                  
+                  <!-- Commission Coverage Alert -->
+                  <div *ngIf="commissionCoverageMessage" class="mt-2 text-center">
+                    <span class="text-xs font-bold px-3 py-1 rounded-lg inline-block"
+                          [ngClass]="isCommissionCovered ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600 animate-pulse'">
+                      {{ commissionCoverageMessage }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Total Profit Breakdown (Static Reference) -->
+                <div *ngIf="selectedLoanForPayment?.partnerId" class="flex gap-4 p-4 bg-emerald-50/50 rounded-2xl">
+                    <div class="flex-1 space-y-1">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase">Ganancia Total Socio</span>
+                        <p class="font-black text-emerald-600">{{ totalProfitBreakdown.partner | currency }}</p>
+                    </div>
+                    <div class="flex-1 space-y-1 text-right">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase">Mi Ganancia Total</span>
+                        <p class="font-black text-emerald-600">{{ totalProfitBreakdown.me | currency }}</p>
+                    </div>
+                </div>
               </div>
               <div class="flex gap-4">
                 <button (click)="closePaymentModal()" class="px-8 py-5 text-slate-400 font-black uppercase tracking-widest text-xs hover:text-slate-600">Cancelar</button>
-                <button (click)="submitPayment()" class="flex-grow bg-emerald-500 hover:bg-emerald-600 text-white py-5 rounded-2xl font-black shadow-xl shadow-emerald-500/20 transition-all active:scale-95">CONFIRMAR ABONO</button>
+                <button (click)="submitPayment()"
+                        [disabled]="!newPaymentAmount || (selectedLoanForPayment?.partnerId && !isCommissionCovered)"
+                        [class.opacity-50]="!newPaymentAmount || (selectedLoanForPayment?.partnerId && !isCommissionCovered)"
+                        class="flex-grow bg-emerald-500 hover:bg-emerald-600 text-white py-5 rounded-2xl font-black shadow-xl shadow-emerald-500/20 transition-all active:scale-95 disabled:cursor-not-allowed">CONFIRMAR ABONO</button>
               </div>
             </div>
           </div>
@@ -300,13 +401,17 @@ import { ActivatedRoute } from '@angular/router';
 export class LoanManagementComponent implements OnInit {
   clients: Client[] = [];
   loans: Loan[] = [];
+  partners: Partner[] = []; // Added partners array
   selectedClient: Client | null = null;
   showLoanForm: boolean = false;
   newLoan: any = {
     monto: 0,
     porcentaje: 0,
     fechaFin: '',
-    status: 'pendiente'
+    status: 'pendiente',
+    partnerId: null,
+    partnerPercentage: 0,
+    partnerCapital: 0
   };
 
   // State: Payment Modal
@@ -343,6 +448,7 @@ export class LoanManagementComponent implements OnInit {
   async loadInitialData() {
     try {
       this.clients = await this.dataService.getClients() || [];
+      this.partners = await this.dataService.getPartners() || []; // Load partners
     } catch (e) {
       console.error(e);
     } finally {
@@ -373,9 +479,42 @@ export class LoanManagementComponent implements OnInit {
     this.cdr.detectChanges();
   }
 
+  // New property for displaying user's share
+  myShare = { percentage: 0, capital: 0, profit: 0 };
+  partnerProfitAmount: number = 0;
+
   getRemainingBalance(loan: Loan): number {
     const paid = this.loanPayments[loan.id!] || 0;
     return loan.total - paid;
+  }
+
+  calculateMyShare() {
+    if (this.newLoan.partnerId) {
+      // Calculate My Percentage
+      const totalRate = this.newLoan.porcentaje || 0;
+      const partnerRate = this.newLoan.partnerPercentage || 0;
+      this.myShare.percentage = Math.max(0, totalRate - partnerRate);
+
+      // Calculate My Capital
+      const totalAmount = this.newLoan.monto || 0;
+      const partnerCapital = this.newLoan.partnerCapital || 0;
+      this.myShare.capital = Math.max(0, totalAmount - partnerCapital);
+
+      // Calculate Profit Amounts (assuming simple interest on the total amount or just sharing the total interest?)
+      // Typically: Profit = Principal * Rate. 
+      // User says: "If loan is 1000 at 12%, and partner gets 6%... partner gets 6% gain".
+      // 1000 * 12% = 120 Total Interest.
+      // Partner: 1000 * 6% = 60? OR is it proportional to capital?
+      // User request implies strict percentage split: "me corresponde el 6%".
+      // Let's assume Interest Amount = Loan Amount * (Rate/100).
+      
+      this.partnerProfitAmount = totalAmount * (partnerRate / 100);
+      this.myShare.profit = totalAmount * (this.myShare.percentage / 100);
+      
+    } else {
+      this.myShare = { percentage: 0, capital: 0, profit: 0 };
+      this.partnerProfitAmount = 0;
+    }
   }
 
   async addLoan() {
@@ -388,12 +527,23 @@ export class LoanManagementComponent implements OnInit {
           monto: this.newLoan.monto,
           porcentaje: this.newLoan.porcentaje,
           total: this.newLoan.monto + (this.newLoan.monto * (this.newLoan.porcentaje / 100)),
-          status: this.newLoan.status
+          status: this.newLoan.status,
+          partnerId: this.newLoan.partnerId,
+          partnerPercentage: this.newLoan.partnerId ? this.newLoan.partnerPercentage : undefined,
+          partnerCapital: this.newLoan.partnerId ? this.newLoan.partnerCapital : undefined
         };
 
         await this.dataService.addLoan(loan);
         await this.selectClient(this.selectedClient);
-        this.newLoan = { monto: 0, porcentaje: 0, fechaFin: '', status: 'pendiente' };
+        this.newLoan = { 
+          monto: 0, 
+          porcentaje: 0, 
+          fechaFin: '', 
+          status: 'pendiente',
+          partnerId: null,
+          partnerPercentage: 0,
+          partnerCapital: 0
+        };
       } catch (e) {
         console.error(e);
       } finally {
@@ -461,12 +611,71 @@ export class LoanManagementComponent implements OnInit {
   }
 
   // LOGICA: ABONOS
+  paymentBreakdown = { partner: 0, me: 0 }; // Breakdown of total balance
+  totalProfitBreakdown = { partner: 0, me: 0 }; // Total Profit for the Loan (Loan Amount * Rate)
+  commissionCoverageMessage: string = '';
+  isCommissionCovered: boolean = false;
+
   async openPaymentModal(loan: Loan) {
     this.selectedLoanForPayment = loan;
     this.newPaymentAmount = 0;
     this.currentBalance = this.getRemainingBalance(loan);
+
+    // Calculate Total Profit Breakdown (Loan Amount * Percentage)
+    if (loan.partnerId && loan.monto > 0) {
+      const partnerRate = loan.partnerPercentage || 0;
+      const myRate = (loan.porcentaje - partnerRate);
+
+      this.totalProfitBreakdown.partner = loan.monto * (partnerRate / 100);
+      this.totalProfitBreakdown.me = loan.monto * (myRate / 100);
+    } else {
+      this.totalProfitBreakdown = { partner: 0, me: 0 };
+    }
+    
+    this.checkCommissionCoverage();
+    this.paymentBreakdown = { partner: 0, me: 0 };
+
     this.showPaymentModal = true;
     this.cdr.detectChanges();
+  }
+
+  checkCommissionCoverage() {
+    const loan = this.selectedLoanForPayment;
+    // If no loan or amount, or NO PARTNER, validation counts as passed (or irrelevant)
+    if (!loan || !this.newPaymentAmount || !loan.partnerId) {
+      this.commissionCoverageMessage = '';
+      this.isCommissionCovered = true; 
+      return;
+    }
+    
+    // Total Commission (Profit) = Loan Amount * (Total Rate / 100)
+    // We use the same basis as the TotalProfitBreakdown logic.
+    // However, user specifically asked about "comision" which is usually the Interest.
+    let totalCommission = 0;
+    if (loan.monto > 0) {
+        totalCommission = loan.monto * (loan.porcentaje / 100);
+    }
+    
+    // Check coverage
+    // "si es igual tambien deberia de quitarse la alerta" -> Hide message if >=
+    // "si no cumple el abono, el boton de confirmar debe estar desahabilitado"
+    
+    // Allow a small epsilon for float comparison errors if needed, but strict >= is usually fine for currency here 
+    // provided we format consistent. Let's stick to simple >=.
+    if (this.newPaymentAmount >= totalCommission) {
+      this.isCommissionCovered = true;
+      this.commissionCoverageMessage = ''; // Remove alert if covered
+    } else {
+      this.isCommissionCovered = false;
+      // Format simply for the message
+      const formattedCommission = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(totalCommission);
+      this.commissionCoverageMessage = `El abono NO cubre la comisión total (${formattedCommission}).`;
+    }
+  }
+
+  // Removing unused dynamic calc method if present, or keeping empty if bound
+  calculatePaymentDistribution() {
+    this.checkCommissionCoverage();
   }
 
   closePaymentModal() {

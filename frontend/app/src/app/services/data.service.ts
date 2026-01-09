@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { Client, Loan, Payment } from '../models/interfaces';
+import { Client, Loan, Payment, Partner } from '../models/interfaces';
 
 @Injectable({
   providedIn: 'root'
@@ -13,6 +13,7 @@ export class DataService {
     console.log('DataService: Initialized');
   }
 
+  // --- CLIENTS ---
   async getClients(): Promise<Client[]> {
     try {
       const data = await firstValueFrom(this.http.get<Client[]>(`${this.apiUrl}/clients`));
@@ -43,6 +44,48 @@ export class DataService {
     }
   }
 
+  // --- PARTNERS ---
+  async getPartners(): Promise<Partner[]> {
+    try {
+      const data = await firstValueFrom(this.http.get<Partner[]>(`${this.apiUrl}/partners`));
+      return data || [];
+    } catch (e) {
+      console.error('DataService: Error fetching partners', e);
+      return [];
+    }
+  }
+
+  async addPartner(partner: Partner): Promise<any> {
+    try {
+      console.log('DataService: Adding partner', partner);
+      return await firstValueFrom(this.http.post(`${this.apiUrl}/partners`, partner));
+    } catch (e) {
+      console.error('DataService: Error adding partner', e);
+      throw e;
+    }
+  }
+
+  async deletePartner(partnerId: number): Promise<any> {
+    try {
+      console.log('DataService: Deleting partner', partnerId);
+      return await firstValueFrom(this.http.delete(`${this.apiUrl}/partners/${partnerId}`));
+    } catch (e) {
+      console.error('DataService: Error deleting partner', e);
+      throw e;
+    }
+  }
+
+  async getPartnerLoans(partnerId: number): Promise<any[]> {
+    try {
+      const data = await firstValueFrom(this.http.get<any[]>(`${this.apiUrl}/partners/${partnerId}/loans`));
+      return data || [];
+    } catch (e) {
+      console.error('DataService: Error fetching partner loans', e);
+      return [];
+    }
+  }
+
+  // --- LOANS ---
   async getLoans(clientId: number): Promise<Loan[]> {
     try {
       const data = await firstValueFrom(this.http.get<Loan[]>(`${this.apiUrl}/clients/${clientId}/loans`));
@@ -71,6 +114,7 @@ export class DataService {
     }
   }
 
+  // --- PAYMENTS ---
   async getPayments(loanId: number): Promise<Payment[]> {
     try {
       const data = await firstValueFrom(this.http.get<Payment[]>(`${this.apiUrl}/loans/${loanId}/payments`));

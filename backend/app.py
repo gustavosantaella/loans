@@ -29,6 +29,14 @@ def init_db():
     ''')
     
     cursor.execute('''
+        CREATE TABLE IF NOT EXISTS partners (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT NOT NULL,
+            nota TEXT
+        )
+    ''')
+    
+    cursor.execute('''
         CREATE TABLE IF NOT EXISTS loans (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             client_id INTEGER,
@@ -39,8 +47,12 @@ def init_db():
             total REAL,
             status TEXT,
             parent_id INTEGER,
+            partner_id INTEGER,
+            partner_percentage REAL,
+            partner_capital REAL,
             FOREIGN KEY (client_id) REFERENCES clients (id),
-            FOREIGN KEY (parent_id) REFERENCES loans (id)
+            FOREIGN KEY (parent_id) REFERENCES loans (id),
+            FOREIGN KEY (partner_id) REFERENCES partners (id)
         )
     ''')
 
@@ -54,6 +66,18 @@ def init_db():
         if 'parent_id' not in columns:
             print("Migrating: Adding parent_id to loans table")
             cursor.execute('ALTER TABLE loans ADD COLUMN parent_id INTEGER')
+            
+        # Partner Migrations
+        if 'partner_id' not in columns:
+            print("Migrating: Adding partner_id to loans table")
+            cursor.execute('ALTER TABLE loans ADD COLUMN partner_id INTEGER')
+        if 'partner_percentage' not in columns:
+            print("Migrating: Adding partner_percentage to loans table")
+            cursor.execute('ALTER TABLE loans ADD COLUMN partner_percentage REAL')
+        if 'partner_capital' not in columns:
+            print("Migrating: Adding partner_capital to loans table")
+            cursor.execute('ALTER TABLE loans ADD COLUMN partner_capital REAL')
+            
     except Exception as e:
         logger.error(f"Migration error: {e}")
 
@@ -122,6 +146,90 @@ def delete_client(client_id):
         logger.error(f"Error deleting client: {e}")
         return jsonify({"error": str(e)}), 500
 
+
+# API Socios (Partners)
+@app.route('/api/partners', methods=['GET'])
+def get_partners():
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM partners ORDER BY id DESC')
+        partners = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return jsonify(partners)
+    except Exception as e:
+        logger.error(f"Error getting partners: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/partners', methods=['POST'])
+def add_partner():
+    try:
+        data = request.json
+        logger.info(f"Adding partner: {data}")
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO partners (nombre, nota)
+            VALUES (?, ?)
+        ''', (data['nombre'], data.get('nota')))
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "success"}), 201
+    except Exception as e:
+        logger.error(f"Error adding partner: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/partners/<int:partner_id>', methods=['DELETE'])
+def delete_partner(partner_id):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM partners WHERE id = ?', (partner_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "success"})
+    except Exception as e:
+        logger.error(f"Error deleting partner: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/partners/<int:partner_id>/loans', methods=['GET'])
+def get_partner_loans(partner_id):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT l.*, c.nombre as client_nombre, c.apellido as client_apellido 
+            FROM loans l
+            JOIN clients c ON l.client_id = c.id
+            WHERE l.partner_id = ? 
+            ORDER BY l.id DESC
+        ''', (partner_id,))
+        loans = [dict(row) for row in cursor.fetchall()]
+        formatted_loans = []
+        for loan in loans:
+            formatted_loans.append({
+                "id": loan["id"],
+                "clientId": loan["client_id"],
+                "clientName": f"{loan['client_nombre']} {loan['client_apellido']}",
+                "fecha": loan["fecha"],
+                "fechaFin": loan["fecha_fin"],
+                "monto": loan["monto"],
+                "porcentaje": loan["porcentaje"],
+                "total": loan["total"],
+                "status": loan["status"],
+                "parentId": loan.get("parent_id"),
+                "partnerId": loan.get("partner_id"),
+                "partnerPercentage": loan.get("partner_percentage"),
+                "partnerCapital": loan.get("partner_capital")
+            })
+        conn.close()
+        return jsonify(formatted_loans)
+    except Exception as e:
+        logger.error(f"Error getting partner loans: {e}")
+        return jsonify({"error": str(e)}), 500
+
 # API Préstamos
 @app.route('/api/clients/<int:client_id>/loans', methods=['GET'])
 def get_loans(client_id):
@@ -142,7 +250,10 @@ def get_loans(client_id):
                 "porcentaje": loan["porcentaje"],
                 "total": loan["total"],
                 "status": loan["status"],
-                "parentId": loan.get("parent_id")
+                "parentId": loan.get("parent_id"),
+                "partnerId": loan.get("partner_id"),
+                "partnerPercentage": loan.get("partner_percentage"),
+                "partnerCapital": loan.get("partner_capital")
             })
         conn.close()
         return jsonify(formatted_loans)
@@ -158,9 +269,21 @@ def add_loan():
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute('''
-            INSERT INTO loans (client_id, fecha, fecha_fin, monto, porcentaje, total, status, parent_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (data['clientId'], data['fecha'], data.get('fechaFin'), data['monto'], data['porcentaje'], data['total'], data['status'], data.get('parentId')))
+            INSERT INTO loans (client_id, fecha, fecha_fin, monto, porcentaje, total, status, parent_id, partner_id, partner_percentage, partner_capital)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            data['clientId'], 
+            data['fecha'], 
+            data.get('fechaFin'), 
+            data['monto'], 
+            data['porcentaje'], 
+            data['total'], 
+            data['status'], 
+            data.get('parentId'),
+            data.get('partnerId'),
+            data.get('partnerPercentage'),
+            data.get('partnerCapital')
+        ))
         conn.commit()
         conn.close()
         return jsonify({"status": "success"}), 201

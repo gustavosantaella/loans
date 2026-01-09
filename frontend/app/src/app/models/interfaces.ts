@@ -1,3 +1,9 @@
+export interface Partner {
+  id?: number;
+  nombre: string;
+  nota?: string;
+}
+
 export interface Client {
   id?: number;
   nombre: string;
@@ -17,6 +23,9 @@ export interface Loan {
   total: number;
   status: 'pagado' | 'pendiente';
   parentId?: number; // Relación con el préstamo original en caso de corte
+  partnerId?: number;
+  partnerPercentage?: number;
+  partnerCapital?: number;
 }
 
 export interface Payment {
