@@ -139,12 +139,20 @@ import { ActivatedRoute } from '@angular/router';
                 <div *ngIf="newLoan.partnerId" class="space-y-2 animate-in fade-in slide-in-from-left-2">
                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Ganancia del Socio (%)</label>
                    <div class="relative">
-                     <input type="number" [(ngModel)]="newLoan.partnerPercentage" (ngModelChange)="calculateMyShare()" placeholder="0" class="w-full px-5 py-4 bg-white border-none rounded-2xl focus:ring-4 focus:ring-purple-500/10 transition-all duration-300 font-bold text-purple-600">
-                     <span class="absolute right-5 top-1/2 -translate-y-1/2 font-bold text-slate-300">%</span>
+                     <input type="number" [(ngModel)]="newLoan.partnerPercentage" (ngModelChange)="calculateMyShare()" placeholder="0" class="w-full px-5 py-4 bg-white border-none rounded-2xl focus:ring-4 focus:ring-purple-500/10 transition-all duration-300 font-bold text-purple-600 mb-2">
+                     <span class="absolute right-5 top-5 -translate-y-1/2 font-bold text-slate-300">%</span>
                    </div>
-                   <div class="px-2 text-right" *ngIf="partnerProfitAmount > 0">
-                      <span class="text-[10px] font-bold text-slate-400">Ganancia: </span>
-                      <span class="text-xs font-black text-purple-600">{{ partnerProfitAmount | currency }}</span>
+
+                   <!-- Math Visualization -->
+                   <div *ngIf="partnerProfitAmount > 0" class="px-4 py-3 bg-purple-100/50 rounded-xl font-mono text-xs">
+                       <div class="flex flex-col items-end">
+                           <div class="text-slate-500 font-bold">{{ newLoan.monto | currency }}</div>
+                           <div class="w-full border-b border-purple-200 pb-1 mb-1 flex justify-between items-end">
+                               <span class="text-purple-300 font-bold pl-1">x</span>
+                               <span class="text-slate-500 font-bold">{{ newLoan.partnerPercentage }}%</span>
+                           </div>
+                           <div class="font-black text-purple-600 text-sm">{{ partnerProfitAmount | currency }}</div>
+                       </div>
                    </div>
                 </div>
 
@@ -322,15 +330,31 @@ import { ActivatedRoute } from '@angular/router';
                   </div>
                 </div>
 
-                <!-- Total Profit Breakdown (Static Reference) -->
-                <div *ngIf="selectedLoanForPayment?.partnerId" class="flex gap-4 p-4 bg-emerald-50/50 rounded-2xl">
-                    <div class="flex-1 space-y-1">
-                        <span class="text-[10px] font-bold text-slate-400 uppercase">Ganancia Total Socio</span>
-                        <p class="font-black text-emerald-600">{{ totalProfitBreakdown.partner | currency }}</p>
+                <!-- Total Profit Breakdown (Arithmetic Style) -->
+                <div *ngIf="selectedLoanForPayment?.partnerId" class="flex gap-8 p-6 bg-slate-50/80 border border-slate-100 rounded-2xl font-mono text-sm">
+                    <!-- Partner Math -->
+                    <div class="flex-1 flex flex-col items-end">
+                        <div class="w-full text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 font-sans">Ganancia Socio</div>
+                        <div class="text-slate-500 font-bold">{{ selectedLoanForPayment?.monto | currency }}</div>
+                        <div class="w-full border-b-2 border-slate-300 pb-1 mb-1 flex justify-between items-end">
+                            <span class="text-slate-400 font-bold pl-2">x</span>
+                            <span class="text-slate-500 font-bold">{{ selectedLoanForPayment?.partnerPercentage }}%</span>
+                        </div>
+                        <div class="font-black text-emerald-600 text-lg">{{ totalProfitBreakdown.partner | currency }}</div>
                     </div>
-                    <div class="flex-1 space-y-1 text-right">
-                        <span class="text-[10px] font-bold text-slate-400 uppercase">Mi Ganancia Total</span>
-                        <p class="font-black text-emerald-600">{{ totalProfitBreakdown.me | currency }}</p>
+
+                    <!-- Divider -->
+                    <div class="w-px bg-slate-200"></div>
+
+                    <!-- Me Math -->
+                    <div class="flex-1 flex flex-col items-end">
+                        <div class="w-full text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 font-sans">Mi Ganancia</div>
+                        <div class="text-slate-500 font-bold">{{ selectedLoanForPayment?.monto | currency }}</div>
+                        <div class="w-full border-b-2 border-slate-300 pb-1 mb-1 flex justify-between items-end">
+                            <span class="text-slate-400 font-bold pl-2">x</span>
+                            <span class="text-slate-500 font-bold">{{ (selectedLoanForPayment!.porcentaje - selectedLoanForPayment!.partnerPercentage) | number:'1.0-2' }}%</span>
+                        </div>
+                        <div class="font-black text-emerald-600 text-lg">{{ totalProfitBreakdown.me | currency }}</div>
                     </div>
                 </div>
               </div>
