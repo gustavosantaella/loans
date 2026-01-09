@@ -87,26 +87,26 @@ import { FormsModule } from '@angular/forms';
               <!-- Breakdown -->
               <div class="space-y-4">
                  <div class="flex justify-between items-center text-blue-100/60 font-medium text-sm">
-                    <span>Fórmula Base</span>
-                    <span class="font-mono">C * % * T</span>
+                    <span>Cuota Mensual (Unitario)</span>
+                    <span class="font-mono">{{ monthlyUnit | currency }}</span>
                  </div>
                  <div class="flex justify-between items-center text-xl font-bold">
-                    <span class="opacity-80">Ganancia Mensual</span>
-                    <span>{{ (capital * (rate/100)) | currency }}</span>
+                    <span class="opacity-80">Recaudo Mensual Total</span>
+                    <span>{{ monthlyTotal | currency }}</span>
                  </div>
                  <div class="w-full h-px bg-white/10"></div>
                  <div class="space-y-1">
-                    <p class="text-xs font-black uppercase tracking-widest opacity-60">Ganancia Total (Interés)</p>
+                    <p class="text-xs font-black uppercase tracking-widest opacity-60">Ganancia Neta (Interés)</p>
                     <p class="text-4xl font-black tracking-tighter">{{ profit | currency }}</p>
                  </div>
               </div>
            </div>
 
            <div class="relative z-10 pt-8 border-t border-white/10 mt-auto">
-              <p class="text-xs font-black uppercase tracking-widest opacity-60 mb-1">Monto Total a Recibir</p>
+              <p class="text-xs font-black uppercase tracking-widest opacity-60 mb-1">Monto Total Proyectado</p>
               <div class="flex items-baseline gap-2">
                  <h2 class="text-6xl font-black tracking-tighter">{{ total | currency }}</h2>
-                 <span class="text-lg font-medium opacity-60">Neto</span>
+                 <span class="text-lg font-medium opacity-60">Bruto</span>
               </div>
            </div>
 
@@ -122,16 +122,31 @@ export class ProjectionComponent {
   rate: number = 0;
   months: number = 0;
 
+  monthlyUnit: number = 0;
+  monthlyTotal: number = 0;
   profit: number = 0;
   total: number = 0;
 
   calculate() {
-    const qty = this.quantity || 1;
-    // Profit = (Capital * (Rate/100) * Months) * Qty
-    this.profit = ((this.capital || 0) * ((this.rate || 0) / 100) * (this.months || 0)) * qty;
-    
-    // Total = (Capital * Qty) + Profit
-    const totalCapital = (this.capital || 0) * qty;
-    this.total = totalCapital + this.profit;
+     const cap = this.capital || 0;
+     const rate = this.rate || 0;
+     const qty = this.quantity || 1;
+     const mos = this.months || 0;
+
+     // 1. Unit Monthly (Capital + Interest)
+     // 300 * 1.12 = 336
+     this.monthlyUnit = cap * (1 + rate/100);
+
+     // 2. Total Monthly (x Quantity)
+     // 336 * 3 = 1008
+     this.monthlyTotal = this.monthlyUnit * qty;
+
+     // 3. Grand Total (x Months)
+     // 1008 * 12 = 12096
+     this.total = this.monthlyTotal * mos;
+     
+     // Profit (Interest Only)
+     // 36 * 3 * 12 = 1296
+     this.profit = (cap * (rate/100)) * qty * mos;
   }
 }
