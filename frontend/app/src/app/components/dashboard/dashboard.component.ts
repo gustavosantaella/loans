@@ -72,7 +72,7 @@ import { RouterLink } from '@angular/router';
             </div>
           </div>
           <div>
-            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Cartera Activa</p>
+            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Mi Capital Activo</p>
             <h3 class="text-2xl font-black text-slate-800 mt-2 leading-none tracking-tight">{{ totalCapital | currency:'USD':'symbol':'1.0-0' }}</h3>
           </div>
         </div>
@@ -88,7 +88,7 @@ import { RouterLink } from '@angular/router';
             <span class="text-white/80 text-[10px] font-black uppercase tracking-widest leading-none">Proyección</span>
           </div>
           <div>
-            <p class="text-[10px] font-black text-white/60 uppercase tracking-widest leading-none">Intereses Acumulados</p>
+            <p class="text-[10px] font-black text-white/60 uppercase tracking-widest leading-none">Mis Ganancias</p>
             <h3 class="text-2xl font-black text-white mt-2 leading-none tracking-tight">{{ totalInterests | currency:'USD':'symbol':'1.0-0' }}</h3>
           </div>
         </div>
@@ -223,14 +223,26 @@ export class DashboardComponent implements OnInit {
     // Total Loans: All of them
     this.totalLoansCount = this.loans.length;
     
-    // Total Capital (Inyectado): Only count original loans (no parentId)
-    // This avoids double-counting capital that was recycled during a "corte"
+    // Total Capital (MY SHARE): Only count original loans (no parentId)
+    // Reduce: (Loan Amount - Partner Capital)
     this.totalCapital = this.loans
       .filter(l => !l.parentId)
-      .reduce((acc, l) => acc + (l.monto || 0), 0);
+      .reduce((acc, l) => {
+        const partnerCap = l.partnerCapital || 0;
+        const myCap = (l.monto || 0) - partnerCap;
+        return acc + myCap;
+      }, 0);
     
-    // totalInterests: Interests are new on every loan, so we sum them all
-    this.totalInterests = this.loans.reduce((acc, l) => acc + ((l.total || 0) - (l.monto || 0)), 0);
+    // Total Interests (MY SHARE):
+    // Interest = Total - Monto
+    // PartnerProfit = Monto * (Partner% / 100)
+    // MyProfit = Interest - PartnerProfit
+    this.totalInterests = this.loans.reduce((acc, l) => {
+      const interest = (l.total || 0) - (l.monto || 0);
+      const partnerProfit = (l.monto || 0) * ((l.partnerPercentage || 0) / 100);
+      const myProfit = interest - partnerProfit;
+      return acc + myProfit;
+    }, 0);
     
     this.paidCount = this.loans.filter(l => l.status === 'pagado').length;
     this.pendingCount = this.loans.filter(l => l.status === 'pendiente').length;
