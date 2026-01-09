@@ -1,0 +1,9 @@
+.venv
+env
+__pycache__
+*.db
+*.log
+.env
+.env.example
+backend.log
+frontend.log

@@ -1,0 +1,527 @@
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { DataService } from '../../services/data.service';
+import { Client, Loan, Payment } from '../../models/interfaces';
+import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
+
+@Component({
+  selector: 'app-loan-management',
+  standalone: true,
+  imports: [CommonModule, FormsModule],
+  template: `
+    <div class="h-[calc(100vh-80px)] overflow-hidden flex flex-col md:flex-row bg-[#f8fafc]">
+      <!-- Sidebar de Clientes (Premium Glass) -->
+      <aside class="w-full md:w-[380px] bg-white border-r border-slate-200/60 flex flex-col shadow-2xl shadow-slate-100 z-10">
+        <div class="p-8 pb-4">
+          <div class="flex items-center justify-between mb-6">
+            <h3 class="text-2xl font-black text-slate-800 tracking-tight">Directorio</h3>
+            <span class="px-3 py-1 bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-widest rounded-full">
+              {{ clients ? clients.length : 0 }} Clientes
+            </span>
+          </div>
+          <div class="relative group">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-blue-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input type="text" placeholder="Buscar por nombre..." 
+                   class="w-full pl-12 pr-4 py-4 bg-slate-50 border-none rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:bg-white transition-all duration-300 placeholder:text-slate-300 font-medium">
+          </div>
+        </div>
+
+        <div class="flex-grow overflow-y-auto px-4 pb-8 mt-4 custom-scrollbar">
+          <div class="space-y-2">
+            <div *ngFor="let client of clients" 
+                class="group relative p-5 rounded-3xl cursor-pointer transition-all duration-300 flex items-center gap-4 hover:shadow-xl hover:shadow-slate-200/40"
+                [class.bg-gradient-to-br]="selectedClient?.id === client.id"
+                [class.from-blue-600]="selectedClient?.id === client.id"
+                [class.to-indigo-700]="selectedClient?.id === client.id"
+                [class.shadow-blue-500/20]="selectedClient?.id === client.id"
+                [class.shadow-lg]="selectedClient?.id === client.id"
+                [class.hover:bg-slate-50]="selectedClient?.id !== client.id"
+                (click)="selectClient(client)">
+              
+              <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-lg font-bold transition-all duration-300"
+                   [class.bg-white]="selectedClient?.id === client.id"
+                   [class.text-blue-600]="selectedClient?.id === client.id"
+                   [class.bg-slate-100]="selectedClient?.id !== client.id"
+                   [class.text-slate-400]="selectedClient?.id !== client.id"
+                   [class.group-hover:bg-blue-50]="selectedClient?.id !== client.id"
+                   [class.group-hover:text-blue-600]="selectedClient?.id !== client.id">
+                {{ client.nombre ? client.nombre[0] : '?' }}{{ client.apellido ? client.apellido[0] : '?' }}
+              </div>
+
+              <div class="flex-grow">
+                <p class="font-bold transition-all duration-300"
+                   [class.text-white]="selectedClient?.id === client.id"
+                   [class.text-slate-800]="selectedClient?.id !== client.id">
+                  {{ client.nombre }} {{ client.apellido }}
+                </p>
+                <p class="text-xs transition-all duration-300"
+                   [class.text-blue-100]="selectedClient?.id === client.id"
+                   [class.text-slate-400]="selectedClient?.id !== client.id">
+                  {{ client.telefono || 'Sin teléfono' }}
+                </p>
+              </div>
+
+              <div *ngIf="selectedClient?.id === client.id" class="text-white opacity-80 animate-in fade-in slide-in-from-right-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Panel (Details) -->
+      <main class="flex-grow overflow-y-auto p-12 custom-scrollbar relative">
+        <div *ngIf="selectedClient" class="max-w-6xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-500">
+          <!-- Header del Cliente -->
+          <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-slate-200">
+            <div>
+              <div class="flex items-center gap-3 mb-2">
+                <span class="px-3 py-1 bg-slate-100 text-slate-500 text-[10px] font-black uppercase tracking-widest rounded-full">Expediente #CLI-{{selectedClient.id}}</span>
+                <span *ngIf="loans && loans.length > 0" class="px-3 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest rounded-full">Activo</span>
+              </div>
+              <h2 class="text-5xl font-black text-slate-800 tracking-tighter">{{ selectedClient.nombre }} {{ selectedClient.apellido }}</h2>
+            </div>
+            <button (click)="toggleLoanForm()" 
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-2xl shadow-xl shadow-blue-500/20 font-bold flex items-center gap-3 transition-all duration-300 active:scale-95 leading-none">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Nuevo Préstamo
+            </button>
+          </div>
+
+          <!-- Formulario de Nuevo Préstamo -->
+          <div *ngIf="showLoanForm" class="bg-white rounded-[2.5rem] shadow-2xl p-10 border-2 border-blue-500/20 animate-in zoom-in-95 duration-300 space-y-8">
+            <h4 class="text-2xl font-black text-slate-800">Parámetros del Crédito</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+              <div class="space-y-2">
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Capital (USD)</label>
+                <input type="number" [(ngModel)]="newLoan.monto" placeholder="0.00" class="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:bg-white transition-all duration-300 font-bold text-lg">
+              </div>
+              <div class="space-y-2">
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tasa (%)</label>
+                <input type="number" [(ngModel)]="newLoan.porcentaje" placeholder="%" class="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:bg-white transition-all duration-300 font-bold text-lg text-blue-600">
+              </div>
+              <div class="space-y-2">
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Vencimiento</label>
+                <input type="date" [(ngModel)]="newLoan.fechaFin" class="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:bg-white transition-all duration-300 font-bold">
+              </div>
+              <div class="space-y-2">
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Estatus</label>
+                <select [(ngModel)]="newLoan.status" class="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:bg-white transition-all duration-300 font-bold">
+                  <option value="pendiente">Pendiente</option>
+                  <option value="pagado">Pagado</option>
+                </select>
+              </div>
+            </div>
+            <div class="flex gap-4">
+               <button (click)="showLoanForm = false" class="px-8 py-4 text-slate-400 font-black uppercase tracking-widest text-xs hover:text-slate-600">Descartar</button>
+               <button (click)="addLoan()" class="flex-grow bg-blue-600 hover:bg-blue-700 text-white py-5 rounded-2xl font-black shadow-xl shadow-blue-500/20 transition-all active:scale-95">GENERAR PRÉSTAMO</button>
+            </div>
+          </div>
+
+          <!-- Historial de Préstamos -->
+          <div class="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
+            <div class="p-8 border-b border-slate-100 flex items-center justify-between">
+              <h4 class="text-xl font-black text-slate-800">Cartera de Préstamos</h4>
+            </div>
+            <div class="overflow-x-auto">
+              <table *ngIf="loans && loans.length > 0; else noLoans" class="w-full text-left">
+                <thead class="bg-slate-50/50">
+                  <tr class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100">
+                    <th class="px-8 py-5">Emisión / Venc. / Ref.</th>
+                    <th class="px-8 py-5">Capital original</th>
+                    <th class="px-8 py-5 text-right">Total a Pagar</th>
+                    <th class="px-8 py-5 text-right">Saldo Pendiente</th>
+                    <th class="px-8 py-5 text-center">Estado</th>
+                    <th class="px-8 py-5 text-right">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-50" *ngFor="let loan of loans">
+                  <tr class="group hover:bg-slate-50/80 transition-all duration-200">
+                    <td class="px-8 py-6">
+                      <p class="text-sm font-bold text-slate-700">{{ loan.fecha }}</p>
+                      <p class="text-[10px] font-black text-rose-400 uppercase tracking-widest mt-1" *ngIf="loan.fechaFin">VENCE: {{ loan.fechaFin }}</p>
+                      <p class="text-[10px] font-black text-blue-400 uppercase tracking-widest mt-1" *ngIf="loan.parentId">REF: #{{ loan.parentId }}</p>
+                    </td>
+                    <td class="px-8 py-6">
+                      <p class="font-black text-slate-800">{{ loan.monto | currency }}</p>
+                      <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{{ loan.porcentaje }}% Int.</p>
+                    </td>
+                    <td class="px-8 py-6 text-right">
+                      <span class="text-lg font-black text-blue-600">{{ loan.total | currency }}</span>
+                    </td>
+                    <td class="px-8 py-6 text-right">
+                      <span class="text-lg font-black" [class.text-rose-600]="getRemainingBalance(loan) > 0" [class.text-emerald-600]="getRemainingBalance(loan) <= 0">
+                        {{ getRemainingBalance(loan) | currency }}
+                      </span>
+                    </td>
+                    <td class="px-8 py-6 text-center">
+                      <span class="inline-flex items-center justify-center px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border"
+                            [ngClass]="loan.status === 'pagado' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'">
+                        {{ loan.status }}
+                      </span>
+                    </td>
+                    <td class="px-8 py-6 text-right flex items-center justify-end gap-2">
+                      <button *ngIf="loan.status === 'pendiente'" (click)="openPaymentModal(loan)" title="Abonar"
+                              class="p-2.5 bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-500/10 hover:bg-emerald-600 transition-all active:scale-95">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </button>
+                      <button *ngIf="loan.status === 'pendiente'" (click)="corteLoan(loan)" title="Corte (Refinanciar)"
+                              class="p-2.5 bg-orange-500 text-white rounded-xl shadow-lg shadow-orange-500/10 hover:bg-orange-600 transition-all active:scale-95">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 11-4.243 4.243 3 3 0 014.243-4.243zm0-5.758a3 3 0 11-4.243-4.243 3 3 0 014.243-4.243z" />
+                        </svg>
+                      </button>
+                      <button (click)="openHistoryModal(loan)" title="Ver Historial"
+                              class="p-2.5 bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-500/10 hover:bg-blue-600 transition-all active:scale-95">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      </button>
+                      <button (click)="deleteLoan(loan)" title="Eliminar"
+                              class="p-2.5 bg-rose-50 text-rose-500 rounded-xl hover:bg-rose-500 hover:text-white transition-all active:scale-95">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <ng-template #noLoans>
+                <div class="py-24 flex flex-col items-center justify-center text-slate-300">
+                  <p class="text-lg font-bold">No hay créditos registrados para este cliente</p>
+                </div>
+              </ng-template>
+            </div>
+          </div>
+        </div>
+
+        <!-- Placeholder Inicial -->
+        <div *ngIf="!selectedClient" class="h-full flex items-center justify-center">
+          <div class="max-w-md w-full p-12 bg-white rounded-[3rem] shadow-2xl shadow-slate-200/50 border border-slate-100 flex flex-col items-center text-center">
+             <div class="w-20 h-20 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center mb-6">
+               <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+               </svg>
+             </div>
+             <h3 class="text-2xl font-black text-slate-800 tracking-tight">Selecciona un Perfil</h3>
+             <p class="text-slate-400 font-medium mt-4">Haz clic en un cliente de la lista para gestionar su cartera de créditos.</p>
+          </div>
+        </div>
+
+        <!-- MODAL: Registrar Abono -->
+        <div *ngIf="showPaymentModal" class="fixed inset-0 z-[100] flex items-center justify-center p-6">
+          <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" (click)="closePaymentModal()"></div>
+          <div class="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl relative z-10 overflow-hidden">
+            <div class="bg-emerald-600 p-8 text-white">
+              <h3 class="text-2xl font-black">Nuevo Abono</h3>
+              <p class="text-emerald-100 text-sm opacity-80 mt-1">Préstamo #{{selectedLoanForPayment?.id}}</p>
+            </div>
+            <div class="p-10 space-y-8">
+              <div class="bg-rose-50 p-6 rounded-3xl flex justify-between items-center">
+                <span class="text-[10px] font-black text-rose-500 uppercase tracking-widest">Saldo Actual</span>
+                <span class="text-2xl font-black text-rose-600">{{ currentBalance | currency }}</span>
+              </div>
+              <div class="space-y-2">
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Monto a abonar (USD)</label>
+                <input type="number" [(ngModel)]="newPaymentAmount" class="w-full px-5 py-6 bg-slate-50 border-none rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:bg-white transition-all font-black text-3xl text-emerald-600" placeholder="0.00">
+              </div>
+              <div class="flex gap-4">
+                <button (click)="closePaymentModal()" class="px-8 py-5 text-slate-400 font-black uppercase tracking-widest text-xs hover:text-slate-600">Cancelar</button>
+                <button (click)="submitPayment()" class="flex-grow bg-emerald-500 hover:bg-emerald-600 text-white py-5 rounded-2xl font-black shadow-xl shadow-emerald-500/20 transition-all active:scale-95">CONFIRMAR ABONO</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- MODAL: Historial de Pagos -->
+        <div *ngIf="showHistoryModal" class="fixed inset-0 z-[100] flex items-center justify-center p-6">
+          <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" (click)="closeHistoryModal()"></div>
+          <div class="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl relative z-10 flex flex-col max-h-[85vh]">
+            <div class="bg-blue-600 p-8 text-white rounded-t-[2.5rem]">
+              <h3 class="text-2xl font-black">Historial de Abonos</h3>
+              <p class="text-blue-100 text-sm opacity-80 mt-1">
+                Crédito por {{ selectedLoanForHistory?.monto | currency }}
+                <span *ngIf="selectedLoanForHistory?.parentId" class="ml-2 px-2 py-0.5 bg-blue-500 text-[10px] rounded-lg">Ref. de #{{selectedLoanForHistory?.parentId}}</span>
+              </p>
+            </div>
+            <div class="p-8 overflow-y-auto flex-grow custom-scrollbar">
+              <div *ngIf="selectedLoanForHistory?.parentId" class="mb-6 p-4 bg-blue-50 border-l-4 border-blue-400 rounded-r-xl">
+                <p class="text-xs font-bold text-blue-700 uppercase tracking-widest mb-1 italic">Nota de Refinanciamiento</p>
+                <p class="text-sm text-blue-600 leading-relaxed font-medium">Este crédito se originó de un corte realizado al préstamo #{{selectedLoanForHistory?.parentId}}.</p>
+              </div>
+
+              <table *ngIf="paymentHistory && paymentHistory.length > 0; else noHistory" class="w-full text-left">
+                <thead class="border-b border-slate-100">
+                  <tr class="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                    <th class="py-4">Fecha</th>
+                    <th class="py-4 text-right">Monto</th>
+                    <th class="py-4 text-right">Acción</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-50">
+                  <tr *ngFor="let pay of paymentHistory" class="group hover:bg-slate-50 transition-all">
+                    <td class="py-5 text-sm font-bold text-slate-600">{{ pay.fecha }}</td>
+                    <td class="py-5 text-right font-black text-slate-800">{{ pay.monto | currency }}</td>
+                    <td class="py-5 text-right">
+                      <button (click)="deletePayment(pay)" class="p-2 text-rose-300 hover:text-rose-600 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <ng-template #noHistory>
+                <div class="py-12 text-center text-slate-300 font-medium italic">No se han registrado abonos aún.</div>
+              </ng-template>
+            </div>
+            <div class="p-8 border-t border-slate-100 flex justify-end">
+              <button (click)="closeHistoryModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-800 px-8 py-3 rounded-2xl font-bold transition-all">Cerrar</button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  `,
+  styles: []
+})
+export class LoanManagementComponent implements OnInit {
+  clients: Client[] = [];
+  loans: Loan[] = [];
+  selectedClient: Client | null = null;
+  showLoanForm: boolean = false;
+  newLoan: any = {
+    monto: 0,
+    porcentaje: 0,
+    fechaFin: '',
+    status: 'pendiente'
+  };
+
+  // State: Payment Modal
+  showPaymentModal: boolean = false;
+  selectedLoanForPayment: Loan | null = null;
+  newPaymentAmount: number = 0;
+  currentBalance: number = 0;
+
+  // State: History Modal
+  showHistoryModal: boolean = false;
+  selectedLoanForHistory: Loan | null = null;
+  paymentHistory: Payment[] = [];
+
+  // Local calculation cache for balances (to avoid multiple API calls in list)
+  loanPayments: { [key: number]: number } = {};
+
+  constructor(
+    private dataService: DataService,
+    private cdr: ChangeDetectorRef,
+    private route: ActivatedRoute
+  ) {}
+
+  async ngOnInit() {
+    await this.loadInitialData();
+    this.route.queryParams.subscribe(params => {
+      if (params['id']) {
+        const id = Number(params['id']);
+        const client = this.clients.find(c => c.id === id);
+        if (client) this.selectClient(client);
+      }
+    });
+  }
+
+  async loadInitialData() {
+    try {
+      this.clients = await this.dataService.getClients() || [];
+    } catch (e) {
+      console.error(e);
+    } finally {
+      this.cdr.detectChanges();
+    }
+  }
+
+  async selectClient(client: Client) {
+    try {
+      this.selectedClient = client;
+      this.loans = await this.dataService.getLoans(client.id!) || [];
+      this.showLoanForm = false;
+      // Fetch all payments for cache to show balances
+      for (const loan of this.loans) {
+        const payments = await this.dataService.getPayments(loan.id!);
+        this.loanPayments[loan.id!] = payments.reduce((acc, p) => acc + p.monto, 0);
+      }
+    } catch (e) {
+      console.error(e);
+      this.loans = [];
+    } finally {
+      this.cdr.detectChanges();
+    }
+  }
+
+  toggleLoanForm() {
+    this.showLoanForm = !this.showLoanForm;
+    this.cdr.detectChanges();
+  }
+
+  getRemainingBalance(loan: Loan): number {
+    const paid = this.loanPayments[loan.id!] || 0;
+    return loan.total - paid;
+  }
+
+  async addLoan() {
+    if (this.selectedClient && this.newLoan.monto > 0) {
+      try {
+        const loan: Loan = {
+          clientId: this.selectedClient.id!,
+          fecha: new Date().toLocaleDateString('es-ES'),
+          fechaFin: this.newLoan.fechaFin,
+          monto: this.newLoan.monto,
+          porcentaje: this.newLoan.porcentaje,
+          total: this.newLoan.monto + (this.newLoan.monto * (this.newLoan.porcentaje / 100)),
+          status: this.newLoan.status
+        };
+
+        await this.dataService.addLoan(loan);
+        await this.selectClient(this.selectedClient);
+        this.newLoan = { monto: 0, porcentaje: 0, fechaFin: '', status: 'pendiente' };
+      } catch (e) {
+        console.error(e);
+      } finally {
+        this.cdr.detectChanges();
+      }
+    }
+  }
+
+  async deleteLoan(loan: Loan) {
+    if (confirm('¿Estás seguro de eliminar este préstamo? Se eliminarán también todos sus abonos.')) {
+      try {
+        await this.dataService.deleteLoan(loan.id!);
+        if (this.selectedClient) await this.selectClient(this.selectedClient);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        this.cdr.detectChanges();
+      }
+    }
+  }
+
+  // LOGICA: CORTE (REFINANCIAR)
+  async corteLoan(loan: Loan) {
+    if (!this.selectedClient) return;
+    
+    const balance = this.getRemainingBalance(loan);
+    if (balance <= 0) {
+      alert('El préstamo ya no tiene saldo pendiente.');
+      return;
+    }
+
+    if (confirm(`¿Realizar CORTE? Se liquidará el préstamo actual (${loan.id}) con un abono por el saldo restante (${balance.toFixed(2)}) y se creará uno nuevo por ese mismo capital.`)) {
+      try {
+        // 1. Liquidar el actual
+        const finalPayment: Payment = {
+          loan_id: loan.id!,
+          monto: balance,
+          fecha: new Date().toLocaleDateString('es-ES')
+        };
+        await this.dataService.addPayment(loan.id!, finalPayment);
+
+        // 2. Crear el nuevo con el mismo % y el balance como nuevo capital, relacionado al anterior
+        const newLoan: Loan = {
+          clientId: this.selectedClient.id!,
+          fecha: new Date().toLocaleDateString('es-ES'),
+          fechaFin: '', 
+          monto: balance,
+          porcentaje: loan.porcentaje,
+          total: balance + (balance * (loan.porcentaje / 100)),
+          status: 'pendiente',
+          parentId: loan.id // Relación establecida
+        };
+        await this.dataService.addLoan(newLoan);
+
+        // 3. Refrescar
+        await this.selectClient(this.selectedClient);
+        alert('Corte realizado con éxito.');
+      } catch (e) {
+        console.error('Error durante el corte:', e);
+        alert('Ocurrió un error al realizar el corte.');
+      } finally {
+        this.cdr.detectChanges();
+      }
+    }
+  }
+
+  // LOGICA: ABONOS
+  async openPaymentModal(loan: Loan) {
+    this.selectedLoanForPayment = loan;
+    this.newPaymentAmount = 0;
+    this.currentBalance = this.getRemainingBalance(loan);
+    this.showPaymentModal = true;
+    this.cdr.detectChanges();
+  }
+
+  closePaymentModal() {
+    this.showPaymentModal = false;
+    this.selectedLoanForPayment = null;
+    this.cdr.detectChanges();
+  }
+
+  async submitPayment() {
+    if (this.selectedLoanForPayment && this.newPaymentAmount > 0) {
+      try {
+        const payment: Payment = {
+          loan_id: this.selectedLoanForPayment.id!,
+          monto: this.newPaymentAmount,
+          fecha: new Date().toLocaleDateString('es-ES')
+        };
+        await this.dataService.addPayment(this.selectedLoanForPayment.id!, payment);
+        if (this.selectedClient) await this.selectClient(this.selectedClient);
+        this.closePaymentModal();
+      } catch (e) {
+        console.error(e);
+      } finally {
+        this.cdr.detectChanges();
+      }
+    }
+  }
+
+  // LOGICA: HISTORIAL
+  async openHistoryModal(loan: Loan) {
+    this.selectedLoanForHistory = loan;
+    this.paymentHistory = await this.dataService.getPayments(loan.id!);
+    this.showHistoryModal = true;
+    this.cdr.detectChanges();
+  }
+
+  closeHistoryModal() {
+    this.showHistoryModal = false;
+    this.selectedLoanForHistory = null;
+    this.paymentHistory = [];
+    this.cdr.detectChanges();
+  }
+
+  async deletePayment(payment: Payment) {
+    if (confirm('¿Eliminar este abono?')) {
+      try {
+        await this.dataService.deletePayment(payment.id!);
+        if (this.selectedLoanForHistory) {
+          this.paymentHistory = await this.dataService.getPayments(this.selectedLoanForHistory.id!);
+          if (this.selectedClient) await this.selectClient(this.selectedClient);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        this.cdr.detectChanges();
+      }
+    }
+  }
+}
