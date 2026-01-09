@@ -159,8 +159,37 @@ import { Partner } from '../../models/interfaces';
         </div>
 
         <!-- CREATE FORM VIEW (Default) -->
-        <div *ngIf="!selectedPartner" class="h-full flex items-center justify-center p-6">
-          <div class="w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl p-10 border border-slate-100">
+        <div *ngIf="!selectedPartner" class="h-full overflow-y-auto custom-scrollbar p-8">
+          <div class="max-w-3xl mx-auto space-y-10">
+            
+            <!-- Global Stats Section -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+               <div class="bg-white p-8 rounded-[2.5rem] shadow-lg shadow-purple-500/5 border border-purple-100/50">
+                  <div class="flex items-center gap-3 mb-2">
+                     <div class="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                     </div>
+                     <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Capital Socios</p>
+                  </div>
+                  <h3 class="text-3xl font-black text-slate-800">{{ globalStats.invested | currency }}</h3>
+               </div>
+               <div class="bg-white p-8 rounded-[2.5rem] shadow-lg shadow-purple-500/5 border border-purple-100/50">
+                  <div class="flex items-center gap-3 mb-2">
+                     <div class="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                        </svg>
+                     </div>
+                     <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ganancias Totales Socios</p>
+                  </div>
+                  <h3 class="text-3xl font-black text-emerald-600">{{ globalStats.earnings | currency }}</h3>
+               </div>
+            </div>
+
+            <!-- Registration Form -->
+            <div class="w-full bg-white rounded-[2.5rem] shadow-2xl p-10 border border-slate-100">
             <div class="flex items-center gap-4 mb-8">
               <div class="w-14 h-14 bg-purple-100 text-purple-600 rounded-2xl flex items-center justify-center">
                  <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -194,6 +223,7 @@ import { Partner } from '../../models/interfaces';
             </div>
           </div>
         </div>
+      </div>
       </main>
     </div>
   `
@@ -213,6 +243,8 @@ export class PartnersManagementComponent implements OnInit {
     pendingLoans: 0,
     paidLoans: 0
   };
+  
+  globalStats = { invested: 0, earnings: 0, count: 0 };
 
   constructor(
     private dataService: DataService,
@@ -226,10 +258,24 @@ export class PartnersManagementComponent implements OnInit {
   async loadPartners() {
     try {
       this.partners = await this.dataService.getPartners();
+      await this.calculateGlobalStats();
       this.cdr.detectChanges();
     } catch (e) {
       console.error(e);
     }
+  }
+
+  async calculateGlobalStats() {
+    this.globalStats = { invested: 0, earnings: 0, count: 0 };
+    for (const p of this.partners) {
+        if (!p.id) continue;
+        const loans = await this.dataService.getPartnerLoans(p.id);
+        for (const l of loans) {
+            this.globalStats.invested += (l.partnerCapital || 0);
+            this.globalStats.earnings += (l.partnerCapital || 0) * ((l.partnerPercentage || 0) / 100);
+        }
+    }
+    this.globalStats.count = this.partners.length;
   }
 
   async addPartner() {
