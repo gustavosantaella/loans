@@ -87,6 +87,14 @@ import { FormsModule } from '@angular/forms';
               <!-- Breakdown -->
               <div class="space-y-4">
                  <div class="flex justify-between items-center text-blue-100/60 font-medium text-sm">
+                    <span>Capital Base (Unitario)</span>
+                    <span class="font-mono">{{ capital | currency }}</span>
+                 </div>
+                 <div class="flex justify-between items-center text-blue-100/60 font-medium text-sm">
+                    <span>Ganancia por Préstamo</span>
+                    <span class="font-mono">{{ unitProfit | currency }}</span>
+                 </div>
+                 <div class="flex justify-between items-center text-blue-100/60 font-medium text-sm">
                     <span>Cuota Mensual (Unitario)</span>
                     <span class="font-mono">{{ monthlyUnit | currency }}</span>
                  </div>
@@ -124,6 +132,7 @@ export class ProjectionComponent {
 
   monthlyUnit: number = 0;
   monthlyTotal: number = 0;
+  unitProfit: number = 0;
   profit: number = 0;
   total: number = 0;
 
@@ -133,20 +142,19 @@ export class ProjectionComponent {
      const qty = this.quantity || 1;
      const mos = this.months || 0;
 
+     // Unit Profit (Capital * Rate)
+     this.unitProfit = cap * (rate / 100);
+
      // 1. Unit Monthly (Capital + Interest)
-     // 300 * 1.12 = 336
-     this.monthlyUnit = cap * (1 + rate/100);
+     this.monthlyUnit = cap + this.unitProfit;
 
      // 2. Total Monthly (x Quantity)
-     // 336 * 3 = 1008
      this.monthlyTotal = this.monthlyUnit * qty;
 
      // 3. Grand Total (x Months)
-     // 1008 * 12 = 12096
      this.total = this.monthlyTotal * mos;
      
-     // Profit (Interest Only)
-     // 36 * 3 * 12 = 1296
-     this.profit = (cap * (rate/100)) * qty * mos;
+     // Profit Breakdown (Interest Only)
+     this.profit = this.unitProfit * qty * mos;
   }
 }
