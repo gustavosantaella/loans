@@ -114,6 +114,15 @@ export class DataService {
     }
   }
 
+  async updateLoan(loan: Loan): Promise<any> {
+    try {
+      return await firstValueFrom(this.http.put(`${this.apiUrl}/loans/${loan.id}`, loan));
+    } catch (e) {
+      console.error('DataService: Error updating loan', e);
+      throw e;
+    }
+  }
+
   // --- PAYMENTS ---
   async getPayments(loanId: number): Promise<Payment[]> {
     try {

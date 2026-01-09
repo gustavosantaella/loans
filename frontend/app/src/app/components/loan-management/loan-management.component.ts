@@ -301,12 +301,16 @@ import { ActivatedRoute } from '@angular/router';
         <!-- MODAL: Registrar Abono -->
         <div *ngIf="showPaymentModal" class="fixed inset-0 z-[100] flex items-center justify-center p-6">
           <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" (click)="closePaymentModal()"></div>
-          <div class="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl relative z-10 overflow-hidden">
-            <div class="bg-emerald-600 p-8 text-white">
+          <div class="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl relative z-10 flex flex-col max-h-[90vh]">
+            <!-- Header -->
+            <div class="bg-emerald-600 p-8 text-white shrink-0">
               <h3 class="text-2xl font-black">Nuevo Abono</h3>
               <p class="text-emerald-100 text-sm opacity-80 mt-1">Préstamo #{{selectedLoanForPayment?.id}}</p>
             </div>
-            <div class="p-10 space-y-8">
+            
+            <!-- Scrollable Content -->
+            <div class="p-8 space-y-8 overflow-y-auto custom-scrollbar">
+
               <div class="space-y-4">
                 <div class="space-y-2">
                   <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Monto a abonar (USD)</label>
@@ -396,14 +400,18 @@ import { ActivatedRoute } from '@angular/router';
                         <div class="font-black text-emerald-600 text-lg">{{ totalProfitBreakdown.me | currency }}</div>
                     </div>
                 </div>
+                </div>
               </div>
-              <div class="flex gap-4">
-                <button (click)="closePaymentModal()" class="px-8 py-5 text-slate-400 font-black uppercase tracking-widest text-xs hover:text-slate-600">Cancelar</button>
-                <button (click)="submitPayment()"
-                        [disabled]="!newPaymentAmount || (selectedLoanForPayment?.partnerId && !isCommissionCovered)"
-                        [class.opacity-50]="!newPaymentAmount || (selectedLoanForPayment?.partnerId && !isCommissionCovered)"
-                        class="flex-grow bg-emerald-500 hover:bg-emerald-600 text-white py-5 rounded-2xl font-black shadow-xl shadow-emerald-500/20 transition-all active:scale-95 disabled:cursor-not-allowed">CONFIRMAR ABONO</button>
-              </div>
+            
+            <!-- Footer (Fixed) -->
+            <div class="p-8 border-t border-slate-100 bg-white rounded-b-[2.5rem] shrink-0">
+               <div class="flex gap-4">
+                 <button (click)="closePaymentModal()" class="px-8 py-5 text-slate-400 font-black uppercase tracking-widest text-xs hover:text-slate-600">Cancelar</button>
+                 <button (click)="submitPayment()"
+                         [disabled]="!newPaymentAmount || (selectedLoanForPayment?.partnerId && !isCommissionCovered)"
+                         [class.opacity-50]="!newPaymentAmount || (selectedLoanForPayment?.partnerId && !isCommissionCovered)"
+                         class="flex-grow bg-emerald-500 hover:bg-emerald-600 text-white py-5 rounded-2xl font-black shadow-xl shadow-emerald-500/20 transition-all active:scale-95 disabled:cursor-not-allowed">CONFIRMAR ABONO</button>
+               </div>
             </div>
           </div>
         </div>
@@ -757,6 +765,14 @@ export class LoanManagementComponent implements OnInit {
           fecha: new Date().toLocaleDateString('es-ES')
         };
         await this.dataService.addPayment(this.selectedLoanForPayment.id!, payment);
+
+        // Check if fully paid
+        const remaining = this.currentBalance - this.newPaymentAmount;
+        if (remaining <= 0.01) { // Epsilon for float precision
+             const updatedLoan: Loan = { ...this.selectedLoanForPayment, status: 'pagado' };
+             await this.dataService.updateLoan(updatedLoan);
+        }
+
         if (this.selectedClient) await this.selectClient(this.selectedClient);
         this.closePaymentModal();
       } catch (e) {

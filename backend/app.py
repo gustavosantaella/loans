@@ -305,6 +305,49 @@ def delete_loan(loan_id):
         logger.error(f"Error deleting loan: {e}")
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/loans/<int:loan_id>', methods=['PUT'])
+def update_loan(loan_id):
+    try:
+        data = request.json
+        logger.info(f"Updating loan {loan_id}: {data}")
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # Build update query dynamically
+        fields = []
+        values = []
+        allowed_fields = ['client_id', 'fecha', 'fecha_fin', 'monto', 'porcentaje', 'total', 'status', 'parent_id', 'partner_id', 'partner_percentage', 'partner_capital']
+        
+        # Map frontend keys (camelCase) to DB keys (snake_case)
+        key_map = {
+            'clientId': 'client_id',
+            'fechaFin': 'fecha_fin',
+            'parentId': 'parent_id',
+            'partnerId': 'partner_id',
+            'partnerPercentage': 'partner_percentage',
+            'partnerCapital': 'partner_capital'
+        }
+        
+        for key, value in data.items():
+            db_key = key_map.get(key, key)
+            if db_key in allowed_fields:
+                fields.append(f"{db_key} = ?")
+                values.append(value)
+        
+        if not fields:
+             return jsonify({"error": "No valid fields to update"}), 400
+             
+        values.append(loan_id)
+        query = f"UPDATE loans SET {', '.join(fields)} WHERE id = ?"
+        
+        cursor.execute(query, values)
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "success"})
+    except Exception as e:
+        logger.error(f"Error updating loan: {e}")
+        return jsonify({"error": str(e)}), 500
+
 # API Pagos
 @app.route('/api/loans/<int:loan_id>/payments', methods=['GET'])
 def get_payments(loan_id):
