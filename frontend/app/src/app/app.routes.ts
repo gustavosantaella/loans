@@ -3,11 +3,13 @@ import { ClientRegistrationComponent } from './components/client-registration/cl
 import { LoanManagementComponent } from './components/loan-management/loan-management.component';
 import { DashboardComponent } from './components/dashboard/dashboard.component';
 import { PartnersManagementComponent } from './components/partners-management/partners-management.component';
+import { ProjectionComponent } from './components/projection/projection.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
   { path: 'dashboard', component: DashboardComponent },
   { path: 'clients', component: ClientRegistrationComponent },
   { path: 'loans', component: LoanManagementComponent },
-  { path: 'partners', component: PartnersManagementComponent }
+  { path: 'partners', component: PartnersManagementComponent },
+  { path: 'projection', component: ProjectionComponent }
 ];

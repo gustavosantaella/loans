@@ -46,6 +46,11 @@ import { CommonModule } from '@angular/common';
                class="px-8 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:text-slate-800 hover:bg-white/60 transition-all duration-200 border border-transparent">
               Socios
             </a>
+            <a routerLink="/projection" 
+               routerLinkActive="bg-white text-blue-600 shadow-sm border-slate-200" 
+               class="px-8 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:text-slate-800 hover:bg-white/60 transition-all duration-200 border border-transparent">
+              Simulador
+            </a>
           </div>
 
           <!-- Profile Section -->
