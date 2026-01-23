@@ -67,6 +67,10 @@ def init_db():
             print("Migrating: Adding parent_id to loans table")
             cursor.execute('ALTER TABLE loans ADD COLUMN parent_id INTEGER')
             
+        if 'active' not in columns:
+            print("Migrating: Adding active to loans table")
+            cursor.execute('ALTER TABLE loans ADD COLUMN active INTEGER DEFAULT 1')
+            
         # Partner Migrations
         if 'partner_id' not in columns:
             print("Migrating: Adding partner_id to loans table")
@@ -222,7 +226,8 @@ def get_partner_loans(partner_id):
                 "parentId": loan.get("parent_id"),
                 "partnerId": loan.get("partner_id"),
                 "partnerPercentage": loan.get("partner_percentage"),
-                "partnerCapital": loan.get("partner_capital")
+                "partnerCapital": loan.get("partner_capital"),
+                "active": loan.get("active", 1)
             })
         conn.close()
         return jsonify(formatted_loans)
@@ -253,7 +258,8 @@ def get_loans(client_id):
                 "parentId": loan.get("parent_id"),
                 "partnerId": loan.get("partner_id"),
                 "partnerPercentage": loan.get("partner_percentage"),
-                "partnerCapital": loan.get("partner_capital")
+                "partnerCapital": loan.get("partner_capital"),
+                "active": loan.get("active", 1)
             })
         conn.close()
         return jsonify(formatted_loans)
@@ -269,8 +275,8 @@ def add_loan():
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute('''
-            INSERT INTO loans (client_id, fecha, fecha_fin, monto, porcentaje, total, status, parent_id, partner_id, partner_percentage, partner_capital)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO loans (client_id, fecha, fecha_fin, monto, porcentaje, total, status, parent_id, partner_id, partner_percentage, partner_capital, active)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             data['clientId'], 
             data['fecha'], 
@@ -282,7 +288,8 @@ def add_loan():
             data.get('parentId'),
             data.get('partnerId'),
             data.get('partnerPercentage'),
-            data.get('partnerCapital')
+            data.get('partnerCapital'),
+            1 # Default active=1
         ))
         conn.commit()
         conn.close()
@@ -316,7 +323,7 @@ def update_loan(loan_id):
         # Build update query dynamically
         fields = []
         values = []
-        allowed_fields = ['client_id', 'fecha', 'fecha_fin', 'monto', 'porcentaje', 'total', 'status', 'parent_id', 'partner_id', 'partner_percentage', 'partner_capital']
+        allowed_fields = ['client_id', 'fecha', 'fecha_fin', 'monto', 'porcentaje', 'total', 'status', 'parent_id', 'partner_id', 'partner_percentage', 'partner_capital', 'active']
         
         # Map frontend keys (camelCase) to DB keys (snake_case)
         key_map = {

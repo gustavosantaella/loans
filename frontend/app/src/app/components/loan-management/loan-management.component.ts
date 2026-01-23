@@ -217,11 +217,12 @@ import { ActivatedRoute } from '@angular/router';
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-50" *ngFor="let loan of loans">
-                  <tr class="group hover:bg-slate-50/80 transition-all duration-200">
+                  <tr class="group hover:bg-slate-50/80 transition-all duration-200" [class.opacity-50]="loan.active === 0" [class.grayscale]="loan.active === 0">
                     <td class="px-8 py-6">
                       <p class="text-sm font-bold text-slate-700">{{ loan.fecha }}</p>
                       <p class="text-[10px] font-black text-rose-400 uppercase tracking-widest mt-1" *ngIf="loan.fechaFin">VENCE: {{ loan.fechaFin }}</p>
                       <p class="text-[10px] font-black text-blue-400 uppercase tracking-widest mt-1" *ngIf="loan.parentId">REF: #{{ loan.parentId }}</p>
+                      <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1" *ngIf="loan.active === 0">(DESACTIVADO)</p>
                     </td>
                     <td class="px-8 py-6">
                       <p class="font-black text-slate-800">{{ loan.monto | currency }}</p>
@@ -247,30 +248,47 @@ import { ActivatedRoute } from '@angular/router';
                       </span>
                     </td>
                     <td class="px-8 py-6 text-right flex items-center justify-end gap-2">
-                      <button *ngIf="loan.status === 'pendiente'" (click)="openPaymentModal(loan)" title="Abonar"
-                              class="p-2.5 bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-500/10 hover:bg-emerald-600 transition-all active:scale-95">
+                      <ng-container *ngIf="loan.active !== 0">
+                        <button *ngIf="loan.status === 'pendiente'" (click)="openPaymentModal(loan)" title="Abonar"
+                                class="p-2.5 bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-500/10 hover:bg-emerald-600 transition-all active:scale-95">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </button>
+                        <button *ngIf="loan.status === 'pendiente'" (click)="corteLoan(loan)" title="Corte (Refinanciar)"
+                                class="p-2.5 bg-orange-500 text-white rounded-xl shadow-lg shadow-orange-500/10 hover:bg-orange-600 transition-all active:scale-95">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 11-4.243 4.243 3 3 0 014.243-4.243zm0-5.758a3 3 0 11-4.243-4.243 3 3 0 014.243-4.243z" />
+                          </svg>
+                        </button>
+                        <button (click)="openHistoryModal(loan)" title="Ver Historial"
+                                class="p-2.5 bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-500/10 hover:bg-blue-600 transition-all active:scale-95">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        </button>
+                        <button (click)="deleteLoan(loan)" title="Eliminar"
+                                class="p-2.5 bg-rose-50 text-rose-500 rounded-xl hover:bg-rose-500 hover:text-white transition-all active:scale-95">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                        <button (click)="toggleLoanActive(loan)" title="Desactivar"
+                                class="p-2.5 bg-slate-100 text-slate-500 rounded-xl hover:bg-slate-500 hover:text-white transition-all active:scale-95">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                          </svg>
+                        </button>
+                      </ng-container>
+
+                      <button *ngIf="loan.active === 0" (click)="toggleLoanActive(loan)" title="Reanudar"
+                              class="px-4 py-2 bg-slate-800 text-white rounded-xl shadow-lg hover:bg-slate-700 transition-all active:scale-95 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                      </button>
-                      <button *ngIf="loan.status === 'pendiente'" (click)="corteLoan(loan)" title="Corte (Refinanciar)"
-                              class="p-2.5 bg-orange-500 text-white rounded-xl shadow-lg shadow-orange-500/10 hover:bg-orange-600 transition-all active:scale-95">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 11-4.243 4.243 3 3 0 014.243-4.243zm0-5.758a3 3 0 11-4.243-4.243 3 3 0 014.243-4.243z" />
-                        </svg>
-                      </button>
-                      <button (click)="openHistoryModal(loan)" title="Ver Historial"
-                              class="p-2.5 bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-500/10 hover:bg-blue-600 transition-all active:scale-95">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                      </button>
-                      <button (click)="deleteLoan(loan)" title="Eliminar"
-                              class="p-2.5 bg-rose-50 text-rose-500 rounded-xl hover:bg-rose-500 hover:text-white transition-all active:scale-95">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
+                        Reanudar
                       </button>
                     </td>
                   </tr>
@@ -633,6 +651,20 @@ export class LoanManagementComponent implements OnInit {
       } finally {
         this.cdr.detectChanges();
       }
+    }
+  }
+
+  async toggleLoanActive(loan: Loan) {
+    if (!loan.id) return;
+    try {
+      const newActiveStatus = (loan.active === undefined || loan.active === 1) ? 0 : 1;
+      const updatedLoan = { ...loan, active: newActiveStatus };
+      await this.dataService.updateLoan(updatedLoan);
+      if (this.selectedClient) await this.selectClient(this.selectedClient);
+    } catch (e) {
+      console.error('Error toggling loan active status', e);
+    } finally {
+      this.cdr.detectChanges();
     }
   }
 

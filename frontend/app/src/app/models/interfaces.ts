@@ -26,6 +26,7 @@ export interface Loan {
   partnerId?: number;
   partnerPercentage?: number;
   partnerCapital?: number;
+  active?: number;
 }
 
 export interface Payment {
