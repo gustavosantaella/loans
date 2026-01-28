@@ -151,4 +151,31 @@ export class DataService {
       throw e;
     }
   }
+  async downloadReport(clientId: number, type: 'pdf' | 'excel'): Promise<Blob> {
+    try {
+      const response = await firstValueFrom(
+        this.http.get(`${this.apiUrl}/clients/${clientId}/report/${type}`, {
+          responseType: 'blob'
+        })
+      );
+      return response;
+    } catch (e) {
+      console.error('DataService: Error downloading report', e);
+      throw e;
+    }
+  }
+
+  async downloadGeneralReport(): Promise<Blob> {
+    try {
+      const response = await firstValueFrom(
+        this.http.get(`${this.apiUrl}/reports/all-loans/pdf`, {
+          responseType: 'blob'
+        })
+      );
+      return response;
+    } catch (e) {
+      console.error('DataService: Error downloading general report', e);
+      throw e;
+    }
+  }
 }

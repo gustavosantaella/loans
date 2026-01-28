@@ -1,8 +1,18 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import sqlite3
 import os
 import logging
+import io
+from flask import Flask, request, jsonify, send_file
+from flask_cors import CORS
+import sqlite3
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+import openpyxl
+from openpyxl.styles import Font, Alignment, PatternFill
 
 app = Flask(__name__)
 CORS(app)
@@ -418,6 +428,271 @@ def delete_payment(payment_id):
         return jsonify({"status": "success"})
     except Exception as e:
         logger.error(f"Error deleting payment: {e}")
+        return jsonify({"error": str(e)}), 500
+
+# Report Generation
+@app.route('/api/clients/<int:client_id>/report/pdf', methods=['GET'])
+def generate_client_pdf(client_id):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Get Client
+        cursor.execute('SELECT * FROM clients WHERE id = ?', (client_id,))
+        client_row = cursor.fetchone()
+        if not client_row:
+            conn.close()
+            return jsonify({"error": "Client not found"}), 404
+        client = dict(client_row)
+        
+        # Get Loans
+        cursor.execute('SELECT * FROM loans WHERE client_id = ? ORDER BY id ASC', (client_id,))
+        loans = [dict(row) for row in cursor.fetchall()]
+        
+        conn.close()
+        
+        # Generate PDF
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        elements = []
+        styles = getSampleStyleSheet()
+        
+        # Title
+        elements.append(Paragraph(f"Reporte de Cliente: {client['nombre']} {client['apellido']}", styles['Title']))
+        elements.append(Paragraph(f"Teléfono: {client.get('telefono', 'N/A')} | Correo: {client.get('correo', 'N/A')}", styles['Normal']))
+        elements.append(Spacer(1, 12))
+        
+        # Table Data
+        data = [['ID', 'Fecha', 'Monto', 'Total', 'Estado', 'Activo']]
+        total_monto = 0
+        total_deuda = 0
+        
+        for loan in loans:
+            m = loan['monto']
+            t = loan['total']
+            total_monto += m
+            total_deuda += t
+            
+            data.append([
+                str(loan['id']),
+                loan['fecha'],
+                f"${m:,.2f}",
+                f"${t:,.2f}",
+                loan['status'],
+                'Sí' if loan.get('active', 1) else 'No'
+            ])
+            
+        # Totals Row
+        data.append([
+            'TOTALES',
+            '',
+            f"${total_monto:,.2f}",
+            f"${total_deuda:,.2f}",
+            '',
+            ''
+        ])
+            
+        table = Table(data)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            # Style for Totals Row
+            ('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey),
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+        ]))
+        elements.append(table)
+        
+        doc.build(elements)
+        buffer.seek(0)
+        
+        return send_file(
+            buffer,
+            as_attachment=True,
+            download_name=f"reporte_{client['nombre']}_{client['apellido']}.pdf",
+            mimetype='application/pdf'
+        )
+        
+    except Exception as e:
+        logger.error(f"Error generating PDF: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/clients/<int:client_id>/report/excel', methods=['GET'])
+def generate_client_excel(client_id):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Get Client
+        cursor.execute('SELECT * FROM clients WHERE id = ?', (client_id,))
+        client_row = cursor.fetchone()
+        if not client_row:
+            conn.close()
+            return jsonify({"error": "Client not found"}), 404
+        client = dict(client_row)
+        
+        # Get Loans
+        cursor.execute('SELECT * FROM loans WHERE client_id = ? ORDER BY id ASC', (client_id,))
+        loans = [dict(row) for row in cursor.fetchall()]
+        
+        conn.close()
+        
+        # Generate Excel
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Reporte de Préstamos"
+        
+        # Header Info
+        ws['A1'] = f"Reporte de Cliente: {client['nombre']} {client['apellido']}"
+        ws['A1'].font = Font(bold=True, size=14)
+        ws.merge_cells('A1:F1')
+        
+        ws['A2'] = f"Teléfono: {client.get('telefono', 'N/A')}"
+        ws['A3'] = f"Correo: {client.get('correo', 'N/A')}"
+        
+        # Table Headers
+        headers = ['ID', 'Fecha', 'Monto', 'Total', 'Estado', 'Activo']
+        for col_num, header in enumerate(headers, 1):
+            cell = ws.cell(row=5, column=col_num)
+            cell.value = header
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.fill = PatternFill(start_color="4F81BD", end_color="4F81BD", fill_type="solid")
+            cell.alignment = Alignment(horizontal="center")
+            
+        # Data
+        total_monto = 0
+        total_deuda = 0
+        current_row = 6
+        
+        for loan in loans:
+            m = loan['monto']
+            t = loan['total']
+            total_monto += m
+            total_deuda += t
+            
+            ws.cell(row=current_row, column=1, value=loan['id'])
+            ws.cell(row=current_row, column=2, value=loan['fecha'])
+            ws.cell(row=current_row, column=3, value=m).number_format = '$#,##0.00'
+            ws.cell(row=current_row, column=4, value=t).number_format = '$#,##0.00'
+            ws.cell(row=current_row, column=5, value=loan['status'])
+            ws.cell(row=current_row, column=6, value='Sí' if loan.get('active', 1) else 'No')
+            current_row += 1
+            
+        # Totals Row
+        ws.cell(row=current_row, column=1, value="TOTALES")
+        ws.cell(row=current_row, column=3, value=total_monto).number_format = '$#,##0.00'
+        ws.cell(row=current_row, column=4, value=total_deuda).number_format = '$#,##0.00'
+        
+        for col in range(1, 7):
+            cell = ws.cell(row=current_row, column=col)
+            cell.font = Font(bold=True)
+            cell.fill = PatternFill(start_color="D3D3D3", end_color="D3D3D3", fill_type="solid")
+            
+        buffer = io.BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+        
+        return send_file(
+            buffer,
+            as_attachment=True,
+            download_name=f"reporte_{client['nombre']}_{client['apellido']}.xlsx",
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+
+    except Exception as e:
+        logger.error(f"Error generating Excel: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/reports/all-loans/pdf', methods=['GET'])
+def generate_general_pdf():
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Get All Loans joined with Clients
+        cursor.execute('''
+            SELECT l.*, c.nombre, c.apellido 
+            FROM loans l
+            JOIN clients c ON l.client_id = c.id
+            ORDER BY l.id DESC
+        ''')
+        loans = [dict(row) for row in cursor.fetchall()]
+        
+        conn.close()
+        
+        # Generate PDF
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        elements = []
+        styles = getSampleStyleSheet()
+        
+        # Title
+        elements.append(Paragraph("Reporte General de Préstamos", styles['Title']))
+        elements.append(Spacer(1, 12))
+        
+        # Table Data
+        # Columns: ID, Cliente, Monto, Total, Estado
+        data = [['ID', 'Cliente', 'Monto', 'Total', 'Estado']]
+        total_monto = 0
+        total_deuda = 0
+        
+        for loan in loans:
+            m = loan['monto']
+            t = loan['total']
+            total_monto += m
+            total_deuda += t
+            
+            data.append([
+                str(loan['id']),
+                f"{loan['nombre']} {loan['apellido']}",
+                f"${m:,.2f}",
+                f"${t:,.2f}",
+                loan['status']
+            ])
+            
+        # Totals Row
+        data.append([
+            'TOTALES',
+            '',
+            f"${total_monto:,.2f}",
+            f"${total_deuda:,.2f}",
+            ''
+        ])
+            
+        table = Table(data)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            # Style for Totals Row
+            ('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey),
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+        ]))
+        elements.append(table)
+        
+        doc.build(elements)
+        buffer.seek(0)
+        
+        return send_file(
+            buffer,
+            as_attachment=True,
+            download_name="reporte_general_prestamos.pdf",
+            mimetype='application/pdf'
+        )
+        
+    except Exception as e:
+        logger.error(f"Error generating General PDF: {e}")
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':

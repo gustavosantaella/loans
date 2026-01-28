@@ -17,6 +17,12 @@ import { RouterLink } from '@angular/router';
           <p class="text-slate-500 mt-2 font-medium italic">Resumen consolidado del sistema de préstamos Elite.</p>
         </div>
         <div class="hidden md:flex items-center gap-4">
+          <button (click)="downloadGeneralReport()" title="Descargar Reporte General" 
+                  class="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-2xl shadow-lg shadow-blue-500/20 transition-all active:scale-95 flex items-center justify-center">
+             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+             </svg>
+          </button>
           <div class="text-right">
             <p class="text-xs font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Fecha Actual</p>
             <p class="text-sm font-bold text-slate-700 leading-none">{{ today }}</p>
@@ -268,6 +274,21 @@ export class DashboardComponent implements OnInit {
       this.percentPaid = Math.round((this.paidCount / this.totalLoansCount) * 100);
     } else {
       this.percentPaid = 0;
+    }
+  }
+
+  async downloadGeneralReport() {
+    try {
+      const blob = await this.dataService.downloadGeneralReport();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `reporte_general_prestamos_${new Date().toISOString().split('T')[0]}.pdf`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('Error downloading general report', e);
+      alert('Error al descargar el reporte general');
     }
   }
 }

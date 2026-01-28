@@ -93,6 +93,20 @@ import { ActivatedRoute } from '@angular/router';
               </svg>
               Nuevo Préstamo
             </button>
+            <div class="flex gap-2">
+              <button (click)="downloadReport('pdf')" title="Descargar PDF" 
+                      class="bg-rose-500 hover:bg-rose-600 text-white p-4 rounded-2xl shadow-xl shadow-rose-500/20 font-bold flex items-center justify-center transition-all duration-300 active:scale-95">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+              </button>
+              <button (click)="downloadReport('excel')" title="Descargar Excel" 
+                      class="bg-emerald-500 hover:bg-emerald-600 text-white p-4 rounded-2xl shadow-xl shadow-emerald-500/20 font-bold flex items-center justify-center transition-all duration-300 active:scale-95">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+              </button>
+            </div>
           </div>
 
           <!-- Formulario de Nuevo Préstamo -->
@@ -665,6 +679,22 @@ export class LoanManagementComponent implements OnInit {
       console.error('Error toggling loan active status', e);
     } finally {
       this.cdr.detectChanges();
+    }
+  }
+
+  async downloadReport(type: 'pdf' | 'excel') {
+    if (!this.selectedClient) return;
+    try {
+      const blob = await this.dataService.downloadReport(this.selectedClient.id!, type);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `reporte_${this.selectedClient.nombre}_${this.selectedClient.apellido}.${type === 'excel' ? 'xlsx' : 'pdf'}`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('Error downloading report', e);
+      alert('Error al descargar el reporte');
     }
   }
 
