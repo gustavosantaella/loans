@@ -21,7 +21,12 @@ from openpyxl.styles import Font, Alignment, PatternFill
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, origins=[
+    'http://localhost:4200',
+    'http://127.0.0.1:4200',
+    'https://loans-seven.vercel.app',
+    'https://loans-front.vercel.app'
+])
 
 # Logging configuration
 logging.basicConfig(level=logging.INFO)
