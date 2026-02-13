@@ -178,4 +178,17 @@ export class DataService {
       throw e;
     }
   }
+
+  async importDatabase(file: File): Promise<any> {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      return await firstValueFrom(
+        this.http.post(`${this.apiUrl}/import-db`, formData)
+      );
+    } catch (e) {
+      console.error('DataService: Error importing database', e);
+      throw e;
+    }
+  }
 }

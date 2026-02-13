@@ -17,6 +17,17 @@ import { RouterLink } from '@angular/router';
           <p class="text-slate-500 mt-2 font-medium italic">Resumen consolidado del sistema de préstamos Elite.</p>
         </div>
         <div class="hidden md:flex items-center gap-4">
+          <input type="file" #dbFileInput accept=".db" (change)="onFileSelected($event)" style="display:none">
+          <button (click)="dbFileInput.click()" [disabled]="importing" title="Importar Base de Datos SQLite"
+                  class="bg-amber-500 hover:bg-amber-600 text-white p-3 rounded-2xl shadow-lg shadow-amber-500/20 transition-all active:scale-95 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed">
+             <svg *ngIf="!importing" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+             </svg>
+             <svg *ngIf="importing" class="animate-spin h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+             </svg>
+          </button>
           <button (click)="downloadGeneralReport()" title="Descargar Reporte General" 
                   class="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-2xl shadow-lg shadow-blue-500/20 transition-all active:scale-95 flex items-center justify-center">
              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -199,6 +210,7 @@ export class DashboardComponent implements OnInit {
   suspendedCount: number = 0;
   percentPaid: number = 0;
   recentClients: Client[] = [];
+  importing: boolean = false;
 
   constructor(
     private dataService: DataService,
@@ -289,6 +301,44 @@ export class DashboardComponent implements OnInit {
     } catch (e) {
       console.error('Error downloading general report', e);
       alert('Error al descargar el reporte general');
+    }
+  }
+
+  async onFileSelected(event: any) {
+    const file: File = event.target.files[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.db')) {
+      alert('Por favor selecciona un archivo .db válido');
+      return;
+    }
+
+    const confirmImport = confirm(
+      `¿Estás seguro de importar "${file.name}"?\n\nEsto reemplazará TODOS los datos actuales en la base de datos.`
+    );
+    if (!confirmImport) {
+      event.target.value = '';
+      return;
+    }
+
+    this.importing = true;
+    try {
+      const result = await this.dataService.importDatabase(file);
+      const counts = result.imported;
+      alert(
+        `✅ Importación exitosa:\n\n` +
+        `• Clientes: ${counts.clients}\n` +
+        `• Socios: ${counts.partners}\n` +
+        `• Préstamos: ${counts.loans}\n` +
+        `• Pagos: ${counts.payments}`
+      );
+      await this.refreshData();
+    } catch (e) {
+      console.error('Error importing database', e);
+      alert('❌ Error al importar la base de datos. Revisa la consola para más detalles.');
+    } finally {
+      this.importing = false;
+      event.target.value = '';
     }
   }
 }

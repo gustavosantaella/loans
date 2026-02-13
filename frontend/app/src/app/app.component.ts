@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
-import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
+import { RouterOutlet, RouterLink, RouterLinkActive, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
+import { AuthService } from './services/auth.service';
 
 @Component({
   selector: 'app-root',
@@ -8,8 +9,8 @@ import { CommonModule } from '@angular/common';
   imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule],
   template: `
     <div class="min-h-screen flex flex-col bg-[#f8fafc] text-slate-900 font-sans selection:bg-blue-100 selection:text-blue-700">
-      <!-- Premium Navbar -->
-      <nav class="bg-white/80 backdrop-blur-xl border-b border-slate-200/60 sticky top-0 z-50 transition-all duration-300">
+      <!-- Premium Navbar (hidden on login) -->
+      <nav *ngIf="authService.isLoggedIn()" class="bg-white/80 backdrop-blur-xl border-b border-slate-200/60 sticky top-0 z-50 transition-all duration-300">
         <div class="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
           <!-- Logo Section -->
           <div class="flex items-center space-x-4 group cursor-pointer" routerLink="/">
@@ -53,7 +54,7 @@ import { CommonModule } from '@angular/common';
             </a>
           </div>
 
-          <!-- Profile Section -->
+          <!-- Profile Section with Logout -->
           <div class="flex items-center space-x-4">
             <div class="text-right hidden sm:block">
               <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Administrator</p>
@@ -65,6 +66,13 @@ import { CommonModule } from '@angular/common';
               </div>
               <div class="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full shadow-sm animate-pulse"></div>
             </div>
+            <!-- Logout Button -->
+            <button (click)="logout()" title="Cerrar Sesión"
+                    class="w-11 h-11 bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-2xl flex items-center justify-center transition-all duration-300 border border-slate-200/50 hover:border-red-200">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+            </button>
           </div>
         </div>
       </nav>
@@ -74,8 +82,8 @@ import { CommonModule } from '@angular/common';
         <router-outlet></router-outlet>
       </main>
 
-      <!-- Minimal Footer -->
-      <footer class="bg-white border-t border-slate-100 py-8 mt-auto">
+      <!-- Minimal Footer (hidden on login) -->
+      <footer *ngIf="authService.isLoggedIn()" class="bg-white border-t border-slate-100 py-8 mt-auto">
         <div class="max-w-7xl mx-auto px-10 flex flex-col md:flex-row justify-between items-center gap-4">
           <div class="flex items-center space-x-2 text-slate-400">
             <span class="w-8 h-px bg-slate-200"></span>
@@ -93,4 +101,10 @@ import { CommonModule } from '@angular/common';
 })
 export class AppComponent {
   title = 'PrestamosElite';
+
+  constructor(public authService: AuthService, private router: Router) {}
+
+  logout() {
+    this.authService.logout();
+  }
 }
