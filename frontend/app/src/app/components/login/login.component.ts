@@ -84,6 +84,19 @@ import { AuthService } from '../../services/auth.service';
               </div>
             </div>
 
+            <!-- Remember Me -->
+            <div class="flex items-center justify-between">
+              <label class="flex items-center gap-3 cursor-pointer group">
+                <div class="relative">
+                  <input type="checkbox" [(ngModel)]="rememberMe" name="rememberMe"
+                         class="sr-only peer" />
+                  <div class="w-10 h-6 bg-white/10 rounded-full peer-checked:bg-blue-500 transition-all duration-300 border border-white/10 peer-checked:border-blue-400"></div>
+                  <div class="absolute top-0.5 left-0.5 w-5 h-5 bg-slate-400 rounded-full peer-checked:translate-x-4 peer-checked:bg-white transition-all duration-300 shadow-sm"></div>
+                </div>
+                <span class="text-sm text-slate-400 font-medium group-hover:text-slate-300 transition-colors select-none">Recordar sesión</span>
+              </label>
+            </div>
+
             <!-- Error Message -->
             <div *ngIf="errorMessage" class="bg-red-500/10 border border-red-500/20 rounded-2xl px-5 py-3 flex items-center gap-3">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -123,6 +136,7 @@ export class LoginComponent {
   loading: boolean = false;
   errorMessage: string = '';
   showPassword: boolean = false;
+  rememberMe: boolean = false;
 
   constructor(private authService: AuthService, private router: Router) {
     // If already logged in, redirect to dashboard
@@ -141,7 +155,7 @@ export class LoginComponent {
     this.errorMessage = '';
 
     try {
-      await this.authService.login(this.email, this.password);
+      await this.authService.login(this.email, this.password, this.rememberMe);
       this.router.navigate(['/dashboard']);
     } catch (e: any) {
       console.error('Login error', e);
