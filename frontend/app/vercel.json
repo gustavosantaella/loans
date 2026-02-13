@@ -64,7 +64,7 @@
   ],
   "redirects": [
     {
-      "source": "/home",
+      "source": "/dashboard",
       "destination": "/",
       "permanent": true
     }
