@@ -10,12 +10,15 @@ import { ActivatedRoute } from '@angular/router';
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="h-[calc(100vh-80px)] overflow-hidden flex flex-col md:flex-row bg-[#f8fafc]">
+    <div class="h-[calc(100vh-64px)] sm:h-[calc(100vh-80px)] overflow-hidden flex flex-col md:flex-row bg-[#f8fafc]">
       <!-- Sidebar de Clientes (Premium Glass) -->
-      <aside class="w-full md:w-[380px] bg-white border-r border-slate-200/60 flex flex-col shadow-2xl shadow-slate-100 z-10">
-        <div class="p-8 pb-4">
-          <div class="flex items-center justify-between mb-6">
-            <h3 class="text-2xl font-black text-slate-800 tracking-tight">Directorio</h3>
+      <aside class="bg-white border-r border-slate-200/60 flex flex-col shadow-2xl shadow-slate-100 z-10"
+             [class.hidden]="mobileShowDetail"
+             [class.md:flex]="true"
+             [ngClass]="mobileShowDetail ? 'hidden md:flex md:w-[380px]' : 'w-full md:w-[380px] flex'">
+        <div class="p-4 sm:p-8 pb-4">
+          <div class="flex items-center justify-between mb-4 sm:mb-6">
+            <h3 class="text-xl sm:text-2xl font-black text-slate-800 tracking-tight">Directorio</h3>
             <span class="px-3 py-1 bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-widest rounded-full">
               {{ clients ? clients.length : 0 }} Clientes
             </span>
@@ -75,19 +78,28 @@ import { ActivatedRoute } from '@angular/router';
       </aside>
 
       <!-- Main Panel (Details) -->
-      <main class="flex-grow overflow-y-auto p-12 custom-scrollbar relative">
-        <div *ngIf="selectedClient" class="max-w-6xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-500">
+      <main class="flex-grow overflow-y-auto p-4 sm:p-8 lg:p-12 custom-scrollbar relative"
+            [ngClass]="!mobileShowDetail ? 'hidden md:block' : 'block'">
+        <div *ngIf="selectedClient" class="max-w-6xl mx-auto space-y-6 sm:space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-500">
+          <!-- Mobile Back Button -->
+          <button (click)="goBackToList()" class="md:hidden flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-blue-600 transition-colors mb-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+            Volver al Directorio
+          </button>
+
           <!-- Header del Cliente -->
-          <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-slate-200">
+          <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 sm:gap-6 pb-4 sm:pb-6 border-b border-slate-200">
             <div>
-              <div class="flex items-center gap-3 mb-2">
+              <div class="flex items-center gap-2 sm:gap-3 mb-2 flex-wrap">
                 <span class="px-3 py-1 bg-slate-100 text-slate-500 text-[10px] font-black uppercase tracking-widest rounded-full">Expediente #CLI-{{selectedClient.id}}</span>
                 <span *ngIf="loans && loans.length > 0" class="px-3 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest rounded-full">Activo</span>
               </div>
-              <h2 class="text-5xl font-black text-slate-800 tracking-tighter">{{ selectedClient.nombre }} {{ selectedClient.apellido }}</h2>
+              <h2 class="text-3xl sm:text-5xl font-black text-slate-800 tracking-tighter">{{ selectedClient.nombre }} {{ selectedClient.apellido }}</h2>
             </div>
             <button (click)="toggleLoanForm()" 
-                    class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-2xl shadow-xl shadow-blue-500/20 font-bold flex items-center gap-3 transition-all duration-300 active:scale-95 leading-none">
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-5 sm:px-8 py-3 sm:py-4 rounded-2xl shadow-xl shadow-blue-500/20 font-bold flex items-center gap-2 sm:gap-3 transition-all duration-300 active:scale-95 leading-none text-sm sm:text-base">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
@@ -110,8 +122,8 @@ import { ActivatedRoute } from '@angular/router';
           </div>
 
           <!-- Formulario de Nuevo Préstamo -->
-          <div *ngIf="showLoanForm" class="bg-white rounded-[2.5rem] shadow-2xl p-10 border-2 border-blue-500/20 animate-in zoom-in-95 duration-300 space-y-8">
-            <h4 class="text-2xl font-black text-slate-800">Parámetros del Crédito</h4>
+          <div *ngIf="showLoanForm" class="bg-white rounded-3xl sm:rounded-[2.5rem] shadow-2xl p-5 sm:p-10 border-2 border-blue-500/20 animate-in zoom-in-95 duration-300 space-y-6 sm:space-y-8">
+            <h4 class="text-xl sm:text-2xl font-black text-slate-800">Parámetros del Crédito</h4>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
               <div class="space-y-2">
                 <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Monto del Préstamo</label>
@@ -507,6 +519,7 @@ export class LoanManagementComponent implements OnInit {
   partners: Partner[] = []; // Added partners array
   selectedClient: Client | null = null;
   showLoanForm: boolean = false;
+  mobileShowDetail: boolean = false;
   newLoan: any = {
     monto: 0,
     porcentaje: 0,
@@ -562,6 +575,7 @@ export class LoanManagementComponent implements OnInit {
   async selectClient(client: Client) {
     try {
       this.selectedClient = client;
+      this.mobileShowDetail = true;
       this.loans = await this.dataService.getLoans(client.id!) || [];
       this.showLoanForm = false;
       // Fetch all payments for cache to show balances
@@ -575,6 +589,12 @@ export class LoanManagementComponent implements OnInit {
     } finally {
       this.cdr.detectChanges();
     }
+  }
+
+  goBackToList() {
+    this.mobileShowDetail = false;
+    this.selectedClient = null;
+    this.cdr.detectChanges();
   }
 
   toggleLoanForm() {
