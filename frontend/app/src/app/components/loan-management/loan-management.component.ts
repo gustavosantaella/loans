@@ -265,14 +265,15 @@ import { ActivatedRoute } from '@angular/router';
                     </td>
                     <td class="px-8 py-6 text-right">
                       <span class="text-lg font-black" [class.text-rose-600]="getRemainingBalance(loan) > 0" [class.text-emerald-600]="getRemainingBalance(loan) <= 0">
-                        {{ getRemainingBalance(loan) | currency }}
+                        {{ getRemainingCapital(loan) | currency }}
                       </span>
                     </td>
                     <td class="px-8 py-6 text-right">
                       <span class="text-lg font-black text-purple-600">
-                        {{ (getRemainingBalance(loan) + (getRemainingBalance(loan) * (loan.porcentaje / 100))) | currency }}
+                        {{ getRemainingBalance(loan) | currency }}
                       </span>
                     </td>
+
                     <td class="px-8 py-6 text-center">
                       <span class="inline-flex items-center justify-center px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border"
                             [ngClass]="loan.status === 'pagado' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'">
@@ -415,10 +416,21 @@ import { ActivatedRoute } from '@angular/router';
                             <span class="font-bold text-rose-500">- {{ newPaymentAmount || 0 | currency }}</span>
                         </div>
 
+                        <!-- Interest Toggle -->
+                        <div class="flex items-center justify-between py-2 border-b border-rose-100 mb-2">
+                             <div class="flex items-center gap-2">
+                                <input type="checkbox" id="genInterest" [(ngModel)]="generateInterest" (change)="toggleInterest()" class="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 border-gray-300">
+                                <label for="genInterest" class="text-xs font-bold text-slate-500 uppercase">Generar Interés ({{ selectedLoanForPayment?.porcentaje }}%)</label>
+                             </div>
+                             <span *ngIf="generateInterest" class="text-sm font-black text-purple-500 animate-in fade-in">+ {{ calculatedInterest | currency }}</span>
+                        </div>
+
                         <!-- Final Result: Restante -->
                         <div class="flex justify-between items-center pt-2 border-t-2 border-rose-200">
                             <span class="text-md font-black text-rose-500 uppercase">Restante</span>
-                            <span class="text-2xl font-black text-rose-600">{{ ((currentBalance * (1 + (selectedLoanForPayment?.porcentaje || 0) / 100)) - (newPaymentAmount || 0)) | currency }}</span>
+                            <span class="text-2xl font-black text-rose-600">
+                                {{ ((currentBalance + (generateInterest ? calculatedInterest : 0)) - (newPaymentAmount || 0)) | currency }}
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -487,14 +499,29 @@ import { ActivatedRoute } from '@angular/router';
                 <thead class="border-b border-slate-100">
                   <tr class="text-[10px] font-black text-slate-400 uppercase tracking-wider">
                     <th class="py-4">Fecha</th>
-                    <th class="py-4 text-right">Monto</th>
+                    <th class="py-4 text-right">Saldo Ant.</th>
+                    <th class="py-4 text-right text-purple-500">+ Interés</th>
+                    <th class="py-4 text-right text-emerald-600">- Abono</th>
+                    <th class="py-4 text-right text-slate-700">Nuevo Saldo</th>
                     <th class="py-4 text-right">Acción</th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-50">
                   <tr *ngFor="let pay of paymentHistory" class="group hover:bg-slate-50 transition-all">
                     <td class="py-5 text-sm font-bold text-slate-600">{{ pay.fecha }}</td>
-                    <td class="py-5 text-right font-black text-slate-800">{{ pay.monto | currency }}</td>
+                    <td class="py-5 text-right font-medium text-slate-400">
+                      <span *ngIf="pay.saldoAnterior !== undefined">{{ pay.saldoAnterior | currency }}</span>
+                      <span *ngIf="pay.saldoAnterior === undefined">-</span>
+                    </td>
+                    <td class="py-5 text-right font-bold text-purple-500">
+                      <span *ngIf="pay.interes !== undefined">{{ pay.interes | currency }}</span>
+                      <span *ngIf="pay.interes === undefined">-</span>
+                    </td>
+                    <td class="py-5 text-right font-black text-emerald-600">{{ pay.monto | currency }}</td>
+                    <td class="py-5 text-right font-bold text-slate-700">
+                      <span *ngIf="pay.saldoNuevo !== undefined">{{ pay.saldoNuevo | currency }}</span>
+                      <span *ngIf="pay.saldoNuevo === undefined">-</span>
+                    </td>
                     <td class="py-5 text-right">
                       <button (click)="deletePayment(pay)" class="p-2 text-rose-300 hover:text-rose-600 transition-colors">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -615,6 +642,13 @@ export class LoanManagementComponent implements OnInit {
   getRemainingBalance(loan: Loan): number {
     const paid = this.loanPayments[loan.id!] || 0;
     return loan.total - paid;
+  }
+
+  getRemainingCapital(loan: Loan): number {
+    const balance = this.getRemainingBalance(loan);
+    const rate = loan.porcentaje || 0;
+    if (rate === 0) return balance;
+    return balance / (1 + (rate / 100));
   }
 
   calculateMyShare() {
@@ -776,10 +810,18 @@ export class LoanManagementComponent implements OnInit {
   isCommissionCovered: boolean = false;
   totalPaidSoFar: number = 0;
 
+  // Optional Interest Toggle
+  generateInterest: boolean = false;
+  calculatedInterest: number = 0;
+
   async openPaymentModal(loan: Loan) {
     this.selectedLoanForPayment = loan;
     this.newPaymentAmount = 0;
     this.currentBalance = this.getRemainingBalance(loan);
+
+    // Reset Interest Toggle
+    this.generateInterest = false;
+    this.calculatedInterest = this.currentBalance * ((loan.porcentaje || 0) / 100);
 
     // Calculate Total Profit Breakdown (Loan Amount * Percentage)
     if (loan.partnerId && loan.monto > 0) {
@@ -844,36 +886,45 @@ export class LoanManagementComponent implements OnInit {
     this.cdr.detectChanges();
   }
 
+  // Calculate interest preview for toggle
+  toggleInterest() {
+    if (this.selectedLoanForPayment) {
+        this.calculatedInterest = this.currentBalance * ((this.selectedLoanForPayment.porcentaje || 0) / 100);
+    }
+  }
+
   async submitPayment() {
     if (this.selectedLoanForPayment && this.newPaymentAmount > 0) {
       try {
-        // 1. Calculate Interest on Current Balance
-        // Logic: The user wants "Saldo Pendiente * Porcentaje" to be added to the debt BEFORE the payment is subtracted.
-        // effectively: NewTotal = OldTotal + (CurrentBalance * Rate)
         const loan = this.selectedLoanForPayment;
-        const interestToAdd = this.currentBalance * (loan.porcentaje / 100);
-        
-        // 2. Update Loan Total
-        const newTotal = loan.total + interestToAdd;
-        const updatedLoanForTotal: Loan = { ...loan, total: newTotal };
-        await this.dataService.updateLoan(updatedLoanForTotal);
-        
-        // Update local reference so subsequent logic uses new total if needed
-        this.selectedLoanForPayment = updatedLoanForTotal;
+        const currentBal = this.currentBalance;
+        let interestToAdd = 0;
 
+        // Apply Interest if Toggle is Checked
+        if (this.generateInterest) {
+            interestToAdd = currentBal * ((loan.porcentaje || 0) / 100);
+            
+            // Update Loan Total
+            const newTotal = loan.total + interestToAdd;
+            const updatedLoanForTotal: Loan = { ...loan, total: newTotal };
+            await this.dataService.updateLoan(updatedLoanForTotal);
+            this.selectedLoanForPayment = updatedLoanForTotal;
+        }
+        
         // 3. Add Payment
+        const newBalance = (currentBal + interestToAdd) - this.newPaymentAmount;
+
         const payment: Payment = {
           loan_id: loan.id!,
           monto: this.newPaymentAmount,
-          fecha: new Date().toLocaleDateString('es-ES')
+          fecha: new Date().toLocaleDateString('es-ES'),
+          saldoAnterior: currentBal,
+          interes: interestToAdd,
+          saldoNuevo: newBalance
         };
         await this.dataService.addPayment(loan.id!, payment);
 
-        // Check if fully paid (using new total)
-        // Recalculate balance because total changed and we paid
-        // NewBalance = (OldBalance + Interest) - Payment
-        const newBalance = (this.currentBalance + interestToAdd) - this.newPaymentAmount;
-
+        // Check if fully paid (using new total logic)
         if (newBalance <= 0.01) { 
              const completedLoan: Loan = { ...this.selectedLoanForPayment, status: 'pagado' };
              await this.dataService.updateLoan(completedLoan);

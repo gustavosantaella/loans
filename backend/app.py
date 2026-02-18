@@ -343,7 +343,10 @@ def add_payment(loan_id):
             'id': get_next_id('payments'),
             'loan_id': loan_id,
             'monto': data['monto'],
-            'fecha': data['fecha']
+            'fecha': data['fecha'],
+            'saldoAnterior': data.get('saldoAnterior'),
+            'interes': data.get('interes'),
+            'saldoNuevo': data.get('saldoNuevo')
         }
         col_payments.insert_one(payment)
 
@@ -368,9 +371,18 @@ def add_payment(loan_id):
 @app.route('/api/payments/<int:payment_id>', methods=['DELETE'])
 def delete_payment(payment_id):
     try:
-        payment = col_payments.find_one({'id': payment_id}, {'loan_id': 1, '_id': 0})
+        payment = col_payments.find_one({'id': payment_id})
         if payment:
             loan_id = payment['loan_id']
+
+            # Revert capitalized interest if present
+            interest_added = payment.get('interes', 0)
+            if interest_added and interest_added > 0:
+                col_loans.update_one(
+                    {'id': loan_id}, 
+                    {'$inc': {'total': -interest_added}}
+                )
+
             col_payments.delete_one({'id': payment_id})
 
             # Re-check loan status

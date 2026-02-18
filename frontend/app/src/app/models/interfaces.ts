@@ -34,4 +34,7 @@ export interface Payment {
   loan_id: number;
   monto: number;
   fecha: string;
+  saldoAnterior?: number;
+  interes?: number;
+  saldoNuevo?: number;
 }
