@@ -346,7 +346,8 @@ def add_payment(loan_id):
             'fecha': data['fecha'],
             'saldoAnterior': data.get('saldoAnterior'),
             'interes': data.get('interes'),
-            'saldoNuevo': data.get('saldoNuevo')
+            'saldoNuevo': data.get('saldoNuevo'),
+            'nota': data.get('nota')
         }
         col_payments.insert_one(payment)
 

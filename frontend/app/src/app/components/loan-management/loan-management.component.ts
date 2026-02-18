@@ -27,14 +27,14 @@ import { ActivatedRoute } from '@angular/router';
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-blue-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
-            <input type="text" placeholder="Buscar por nombre..." 
+            <input type="text" placeholder="Buscar por nombre..." [(ngModel)]="searchTerm" (ngModelChange)="filterClients()"
                    class="w-full pl-12 pr-4 py-4 bg-slate-50 border-none rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:bg-white transition-all duration-300 placeholder:text-slate-300 font-medium">
           </div>
         </div>
 
         <div class="flex-grow overflow-y-auto px-4 pb-8 mt-4 custom-scrollbar">
           <div class="space-y-2">
-            <div *ngFor="let client of clients" 
+            <div *ngFor="let client of filteredClients" 
                 class="group relative p-5 rounded-3xl cursor-pointer transition-all duration-300 flex items-center gap-4 hover:shadow-xl hover:shadow-slate-200/40"
                 [class.bg-gradient-to-br]="selectedClient?.id === client.id"
                 [class.from-blue-600]="selectedClient?.id === client.id"
@@ -61,7 +61,14 @@ import { ActivatedRoute } from '@angular/router';
                      [class.text-slate-800]="selectedClient?.id !== client.id">
                     {{ client.nombre }} {{ client.apellido }}
                   </p>
-                  <span *ngIf="clientHasPendingLoans[client.id!]" 
+                  <span *ngIf="clientHasOverdueLoans[client.id!]" 
+                        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider shrink-0"
+                        [ngClass]="selectedClient?.id === client.id ? 'bg-rose-400/30 text-white' : 'bg-rose-100 text-rose-600'">
+                    <span class="w-1.5 h-1.5 rounded-full animate-pulse"
+                          [ngClass]="selectedClient?.id === client.id ? 'bg-white' : 'bg-rose-500'"></span>
+                    Vencido
+                  </span>
+                  <span *ngIf="clientHasPendingLoans[client.id!] && !clientHasOverdueLoans[client.id!]" 
                         class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider shrink-0"
                         [ngClass]="selectedClient?.id === client.id ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-600'">
                     <span class="w-1.5 h-1.5 rounded-full animate-pulse"
@@ -115,6 +122,12 @@ import { ActivatedRoute } from '@angular/router';
               Nuevo Préstamo
             </button>
             <div class="flex gap-2">
+              <button (click)="sendWhatsAppReminder()" title="Recordatorio WhatsApp" 
+                      class="bg-green-500 hover:bg-green-600 text-white p-4 rounded-2xl shadow-xl shadow-green-500/20 font-bold flex items-center justify-center transition-all duration-300 active:scale-95">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                  </svg>
+              </button>
               <button (click)="downloadReport('pdf')" title="Descargar PDF" 
                       class="bg-rose-500 hover:bg-rose-600 text-white p-4 rounded-2xl shadow-xl shadow-rose-500/20 font-bold flex items-center justify-center transition-all duration-300 active:scale-95">
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -127,6 +140,26 @@ import { ActivatedRoute } from '@angular/router';
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                   </svg>
               </button>
+            </div>
+          </div>
+
+          <!-- Client Summary KPI Cards -->
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+              <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Capital Prestado</p>
+              <p class="text-xl font-black text-slate-800 mt-1">{{ clientStats.capitalPrestado | currency }}</p>
+            </div>
+            <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+              <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Cobrado</p>
+              <p class="text-xl font-black text-emerald-600 mt-1">{{ clientStats.totalCobrado | currency }}</p>
+            </div>
+            <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+              <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Saldo Pendiente</p>
+              <p class="text-xl font-black text-rose-600 mt-1">{{ clientStats.saldoPendiente | currency }}</p>
+            </div>
+            <div class="bg-gradient-to-br from-blue-600 to-indigo-700 p-5 rounded-2xl shadow-lg shadow-blue-500/20">
+              <p class="text-[10px] font-black text-white/60 uppercase tracking-widest">Ganancia Proyectada</p>
+              <p class="text-xl font-black text-white mt-1">{{ clientStats.gananciaProyectada | currency }}</p>
             </div>
           </div>
 
@@ -257,6 +290,10 @@ import { ActivatedRoute } from '@angular/router';
                     <td class="px-8 py-6">
                       <p class="text-sm font-bold text-slate-700">{{ loan.fecha }}</p>
                       <p class="text-[10px] font-black text-rose-400 uppercase tracking-widest mt-1" *ngIf="loan.fechaFin">VENCE: {{ loan.fechaFin }}</p>
+                      <span *ngIf="isOverdue(loan)" class="inline-flex items-center gap-1 mt-1 px-2 py-0.5 bg-rose-100 text-rose-600 rounded-lg text-[9px] font-black uppercase tracking-wider animate-pulse">
+                        <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                        VENCIDO · {{ daysOverdue(loan) }} días
+                      </span>
                       <p class="text-[10px] font-black text-blue-400 uppercase tracking-widest mt-1" *ngIf="loan.parentId">REF: #{{ loan.parentId }}</p>
                       <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1" *ngIf="loan.active === 0">(DESACTIVADO)</p>
                     </td>
@@ -444,6 +481,13 @@ import { ActivatedRoute } from '@angular/router';
                     </div>
                 </div>
 
+                <!-- Payment Note -->
+                <div class="space-y-2">
+                  <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nota / Observación (opcional)</label>
+                  <input type="text" [(ngModel)]="newPaymentNote" placeholder="Ej: Pago por transferencia bancaria..." 
+                         class="w-full px-5 py-3 bg-slate-50 border-none rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:bg-white transition-all font-medium text-sm text-slate-600 placeholder:text-slate-300">
+                </div>
+
                 <!-- Total Profit Breakdown (Arithmetic Style) -->
                 <div *ngIf="selectedLoanForPayment?.partnerId" class="flex gap-8 p-6 bg-slate-50/80 border border-slate-100 rounded-2xl font-mono text-sm">
                     <!-- Partner Math -->
@@ -517,7 +561,10 @@ import { ActivatedRoute } from '@angular/router';
                 </thead>
                 <tbody class="divide-y divide-slate-50">
                   <tr *ngFor="let pay of paymentHistory" class="group hover:bg-slate-50 transition-all">
-                    <td class="py-5 text-sm font-bold text-slate-600">{{ pay.fecha }}</td>
+                    <td class="py-5">
+                      <div class="text-sm font-bold text-slate-600">{{ pay.fecha }}</div>
+                      <div *ngIf="pay.nota" class="text-[10px] text-slate-400 italic mt-0.5 max-w-[120px] truncate" [title]="pay.nota">{{ pay.nota }}</div>
+                    </td>
                     <td class="py-5 text-right font-medium text-slate-400">
                       <span *ngIf="pay.saldoAnterior !== undefined">{{ pay.saldoAnterior | currency }}</span>
                       <span *ngIf="pay.saldoAnterior === undefined">-</span>
@@ -557,12 +604,17 @@ import { ActivatedRoute } from '@angular/router';
 })
 export class LoanManagementComponent implements OnInit {
   clients: Client[] = [];
+  filteredClients: Client[] = [];
+  searchTerm: string = '';
   loans: Loan[] = [];
-  partners: Partner[] = []; // Added partners array
+  partners: Partner[] = [];
   selectedClient: Client | null = null;
   showLoanForm: boolean = false;
   mobileShowDetail: boolean = false;
   clientHasPendingLoans: { [clientId: number]: boolean } = {};
+  clientHasOverdueLoans: { [clientId: number]: boolean } = {};
+  clientStats = { capitalPrestado: 0, totalCobrado: 0, saldoPendiente: 0, gananciaProyectada: 0 };
+  newPaymentNote: string = '';
   newLoan: any = {
     monto: 0,
     porcentaje: 0,
@@ -607,11 +659,22 @@ export class LoanManagementComponent implements OnInit {
   async loadInitialData() {
     try {
       this.clients = await this.dataService.getClients() || [];
+      this.filteredClients = [...this.clients];
       this.partners = await this.dataService.getPartners() || [];
-      // Check which clients have pending loans
+      // Check which clients have pending / overdue loans
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
       for (const client of this.clients) {
         const loans = await this.dataService.getLoans(client.id!);
-        this.clientHasPendingLoans[client.id!] = loans.some(l => l.status === 'pendiente' && l.active !== 0);
+        const activeLoans = loans.filter(l => l.status === 'pendiente' && l.active !== 0);
+        this.clientHasPendingLoans[client.id!] = activeLoans.length > 0;
+        this.clientHasOverdueLoans[client.id!] = activeLoans.some(l => {
+          if (!l.fechaFin) return false;
+          const parts = l.fechaFin.split('-');
+          if (parts.length !== 3) return false;
+          const dueDate = new Date(+parts[0], +parts[1] - 1, +parts[2]);
+          return dueDate < today;
+        });
       }
     } catch (e) {
       console.error(e);
@@ -626,14 +689,25 @@ export class LoanManagementComponent implements OnInit {
       this.mobileShowDetail = true;
       this.loans = await this.dataService.getLoans(client.id!) || [];
       this.showLoanForm = false;
-      // Update pending loan status for sidebar badge
-      this.clientHasPendingLoans[client.id!] = this.loans.some(l => l.status === 'pendiente' && l.active !== 0);
+      // Update pending & overdue loan status for sidebar badge
+      const activeLoans = this.loans.filter(l => l.status === 'pendiente' && l.active !== 0);
+      this.clientHasPendingLoans[client.id!] = activeLoans.length > 0;
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      this.clientHasOverdueLoans[client.id!] = activeLoans.some(l => {
+        if (!l.fechaFin) return false;
+        const parts = l.fechaFin.split('-');
+        if (parts.length !== 3) return false;
+        const dueDate = new Date(+parts[0], +parts[1] - 1, +parts[2]);
+        return dueDate < today;
+      });
       // Fetch all payments for cache to show balances
       this.loanPaymentsMap = {};
       for (const loan of this.loans) {
         const payments = await this.dataService.getPayments(loan.id!);
         this.loanPaymentsMap[loan.id!] = payments;
       }
+      // Calculate client stats
+      this.calculateClientStats();
     } catch (e) {
       console.error(e);
       this.loans = [];
@@ -651,6 +725,68 @@ export class LoanManagementComponent implements OnInit {
   toggleLoanForm() {
     this.showLoanForm = !this.showLoanForm;
     this.cdr.detectChanges();
+  }
+
+  filterClients() {
+    const term = this.searchTerm.toLowerCase().trim();
+    if (!term) {
+      this.filteredClients = [...this.clients];
+    } else {
+      this.filteredClients = this.clients.filter(c =>
+        `${c.nombre} ${c.apellido}`.toLowerCase().includes(term) ||
+        (c.telefono && c.telefono.toLowerCase().includes(term))
+      );
+    }
+    this.cdr.detectChanges();
+  }
+
+  isOverdue(loan: Loan): boolean {
+    if (loan.status !== 'pendiente' || loan.active === 0 || !loan.fechaFin) return false;
+    const parts = loan.fechaFin.split('-');
+    if (parts.length !== 3) return false;
+    const dueDate = new Date(+parts[0], +parts[1] - 1, +parts[2]);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    return dueDate < today;
+  }
+
+  daysOverdue(loan: Loan): number {
+    if (!loan.fechaFin) return 0;
+    const parts = loan.fechaFin.split('-');
+    if (parts.length !== 3) return 0;
+    const dueDate = new Date(+parts[0], +parts[1] - 1, +parts[2]);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const diff = today.getTime() - dueDate.getTime();
+    return Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
+  }
+
+  calculateClientStats() {
+    const activeLoans = this.loans.filter(l => l.active !== 0 && l.status === 'pendiente');
+    this.clientStats.capitalPrestado = activeLoans.reduce((acc, l) => acc + l.monto, 0);
+    let totalCobrado = 0;
+    let saldoPendiente = 0;
+    for (const loan of activeLoans) {
+      const payments = this.loanPaymentsMap[loan.id!] || [];
+      totalCobrado += payments.reduce((acc, p) => acc + p.monto, 0);
+      saldoPendiente += this.getRemainingCapital(loan);
+    }
+    this.clientStats.totalCobrado = totalCobrado;
+    this.clientStats.saldoPendiente = saldoPendiente;
+    this.clientStats.gananciaProyectada = activeLoans.reduce((acc, l) => acc + (l.monto * l.porcentaje / 100), 0);
+  }
+
+  sendWhatsAppReminder() {
+    if (!this.selectedClient) return;
+    const phone = (this.selectedClient.telefono || '').replace(/[^0-9]/g, '');
+    if (!phone) {
+      alert('Este cliente no tiene un número de teléfono registrado.');
+      return;
+    }
+    const name = `${this.selectedClient.nombre} ${this.selectedClient.apellido}`;
+    const pendingLoans = this.loans.filter(l => l.status === 'pendiente' && l.active !== 0);
+    const totalPending = pendingLoans.reduce((acc, l) => acc + this.getRemainingBalance(l), 0);
+    const message = `Hola ${name}, le recordamos que tiene un saldo pendiente de $${totalPending.toFixed(2)}. Quedo atento a su pago. Gracias.`;
+    const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
   }
 
   // New property for displaying user's share
@@ -842,6 +978,7 @@ export class LoanManagementComponent implements OnInit {
   async openPaymentModal(loan: Loan) {
     this.selectedLoanForPayment = loan;
     this.newPaymentAmount = 0;
+    this.newPaymentNote = '';
     this.currentBalance = this.getRemainingCapital(loan);
 
     // Reset Interest Toggle
@@ -909,6 +1046,7 @@ export class LoanManagementComponent implements OnInit {
   closePaymentModal() {
     this.showPaymentModal = false;
     this.selectedLoanForPayment = null;
+    this.newPaymentNote = '';
     this.cdr.detectChanges();
   }
 
@@ -946,7 +1084,8 @@ export class LoanManagementComponent implements OnInit {
           fecha: new Date().toLocaleDateString('es-ES'),
           saldoAnterior: currentBal,
           interes: interestToAdd,
-          saldoNuevo: newBalance
+          saldoNuevo: newBalance,
+          nota: this.newPaymentNote || undefined
         };
         await this.dataService.addPayment(loan.id!, payment);
 

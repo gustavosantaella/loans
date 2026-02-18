@@ -37,4 +37,5 @@ export interface Payment {
   saldoAnterior?: number;
   interes?: number;
   saldoNuevo?: number;
+  nota?: string;
 }
