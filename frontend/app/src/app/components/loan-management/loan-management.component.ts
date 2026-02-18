@@ -264,7 +264,7 @@ import { ActivatedRoute } from '@angular/router';
                       <span class="text-lg font-black text-blue-600">{{ loan.total | currency }}</span>
                     </td>
                     <td class="px-8 py-6 text-right">
-                      <span class="text-lg font-black" [class.text-rose-600]="getRemainingBalance(loan) > 0" [class.text-emerald-600]="getRemainingBalance(loan) <= 0">
+                      <span class="text-lg font-black" [class.text-rose-600]="getRemainingCapital(loan) > 0" [class.text-emerald-600]="getRemainingCapital(loan) <= 0">
                         {{ getRemainingCapital(loan) | currency }}
                       </span>
                     </td>
@@ -574,8 +574,8 @@ export class LoanManagementComponent implements OnInit {
   selectedLoanForHistory: Loan | null = null;
   paymentHistory: Payment[] = [];
 
-  // Local calculation cache for balances (to avoid multiple API calls in list)
-  loanPayments: { [key: number]: number } = {};
+  // Local calculation cache: payments per loan for balance calculations
+  loanPaymentsMap: { [loanId: number]: Payment[] } = {};
 
   constructor(
     private dataService: DataService,
@@ -612,9 +612,10 @@ export class LoanManagementComponent implements OnInit {
       this.loans = await this.dataService.getLoans(client.id!) || [];
       this.showLoanForm = false;
       // Fetch all payments for cache to show balances
+      this.loanPaymentsMap = {};
       for (const loan of this.loans) {
         const payments = await this.dataService.getPayments(loan.id!);
-        this.loanPayments[loan.id!] = payments.reduce((acc, p) => acc + p.monto, 0);
+        this.loanPaymentsMap[loan.id!] = payments;
       }
     } catch (e) {
       console.error(e);
@@ -639,16 +640,23 @@ export class LoanManagementComponent implements OnInit {
   myShare = { percentage: 0, capital: 0, profit: 0 };
   partnerProfitAmount: number = 0;
 
-  getRemainingBalance(loan: Loan): number {
-    const paid = this.loanPayments[loan.id!] || 0;
-    return loan.total - paid;
+  /**
+   * Saldo Pendiente: capital restante (monto original - pagos realizados).
+   * Usa el saldoNuevo del último pago registrado, o el monto original si no hay pagos.
+   */
+  getRemainingCapital(loan: Loan): number {
+    const payments = this.loanPaymentsMap[loan.id!] || [];
+    if (payments.length === 0) return loan.monto;
+    const lastPayment = payments[payments.length - 1];
+    return lastPayment.saldoNuevo ?? loan.monto;
   }
 
-  getRemainingCapital(loan: Loan): number {
-    const balance = this.getRemainingBalance(loan);
-    const rate = loan.porcentaje || 0;
-    if (rate === 0) return balance;
-    return balance / (1 + (rate / 100));
+  /**
+   * Saldo Total Pendiente: capital restante + interés sobre ese capital.
+   */
+  getRemainingBalance(loan: Loan): number {
+    const capital = this.getRemainingCapital(loan);
+    return capital + (capital * loan.porcentaje / 100);
   }
 
   calculateMyShare() {
@@ -762,7 +770,7 @@ export class LoanManagementComponent implements OnInit {
   async corteLoan(loan: Loan) {
     if (!this.selectedClient) return;
     
-    const balance = this.getRemainingBalance(loan);
+    const balance = this.getRemainingCapital(loan);
     if (balance <= 0) {
       alert('El préstamo ya no tiene saldo pendiente.');
       return;
@@ -817,7 +825,7 @@ export class LoanManagementComponent implements OnInit {
   async openPaymentModal(loan: Loan) {
     this.selectedLoanForPayment = loan;
     this.newPaymentAmount = 0;
-    this.currentBalance = this.getRemainingBalance(loan);
+    this.currentBalance = this.getRemainingCapital(loan);
 
     // Reset Interest Toggle
     this.generateInterest = false;
@@ -835,7 +843,8 @@ export class LoanManagementComponent implements OnInit {
     }
     
     this.checkCommissionCoverage();
-    this.totalPaidSoFar = loan.total - this.currentBalance;
+    const paidPayments = this.loanPaymentsMap[loan.id!] || [];
+    this.totalPaidSoFar = paidPayments.reduce((acc, p) => acc + p.monto, 0);
 
     this.showPaymentModal = true;
     this.cdr.detectChanges();
