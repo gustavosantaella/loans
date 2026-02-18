@@ -238,6 +238,7 @@ import { ActivatedRoute } from '@angular/router';
                     <th class="px-8 py-5">Capital original</th>
                     <th class="px-8 py-5 text-right">Total a Pagar</th>
                     <th class="px-8 py-5 text-right">Saldo Pendiente</th>
+                    <th class="px-8 py-5 text-right">Total Pendiente</th>
                     <th class="px-8 py-5 text-center">Estado</th>
                     <th class="px-8 py-5 text-right">Acciones</th>
                   </tr>
@@ -265,6 +266,11 @@ import { ActivatedRoute } from '@angular/router';
                     <td class="px-8 py-6 text-right">
                       <span class="text-lg font-black" [class.text-rose-600]="getRemainingBalance(loan) > 0" [class.text-emerald-600]="getRemainingBalance(loan) <= 0">
                         {{ getRemainingBalance(loan) | currency }}
+                      </span>
+                    </td>
+                    <td class="px-8 py-6 text-right">
+                      <span class="text-lg font-black text-purple-600">
+                        {{ (getRemainingBalance(loan) + (getRemainingBalance(loan) * (loan.porcentaje / 100))) | currency }}
                       </span>
                     </td>
                     <td class="px-8 py-6 text-center">
@@ -412,7 +418,7 @@ import { ActivatedRoute } from '@angular/router';
                         <!-- Final Result: Restante -->
                         <div class="flex justify-between items-center pt-2 border-t-2 border-rose-200">
                             <span class="text-md font-black text-rose-500 uppercase">Restante</span>
-                            <span class="text-2xl font-black text-rose-600">{{ (currentBalance - (newPaymentAmount || 0)) | currency }}</span>
+                            <span class="text-2xl font-black text-rose-600">{{ ((currentBalance * (1 + (selectedLoanForPayment?.porcentaje || 0) / 100)) - (newPaymentAmount || 0)) | currency }}</span>
                         </div>
                     </div>
                 </div>
@@ -841,18 +847,36 @@ export class LoanManagementComponent implements OnInit {
   async submitPayment() {
     if (this.selectedLoanForPayment && this.newPaymentAmount > 0) {
       try {
+        // 1. Calculate Interest on Current Balance
+        // Logic: The user wants "Saldo Pendiente * Porcentaje" to be added to the debt BEFORE the payment is subtracted.
+        // effectively: NewTotal = OldTotal + (CurrentBalance * Rate)
+        const loan = this.selectedLoanForPayment;
+        const interestToAdd = this.currentBalance * (loan.porcentaje / 100);
+        
+        // 2. Update Loan Total
+        const newTotal = loan.total + interestToAdd;
+        const updatedLoanForTotal: Loan = { ...loan, total: newTotal };
+        await this.dataService.updateLoan(updatedLoanForTotal);
+        
+        // Update local reference so subsequent logic uses new total if needed
+        this.selectedLoanForPayment = updatedLoanForTotal;
+
+        // 3. Add Payment
         const payment: Payment = {
-          loan_id: this.selectedLoanForPayment.id!,
+          loan_id: loan.id!,
           monto: this.newPaymentAmount,
           fecha: new Date().toLocaleDateString('es-ES')
         };
-        await this.dataService.addPayment(this.selectedLoanForPayment.id!, payment);
+        await this.dataService.addPayment(loan.id!, payment);
 
-        // Check if fully paid
-        const remaining = this.currentBalance - this.newPaymentAmount;
-        if (remaining <= 0.01) { // Epsilon for float precision
-             const updatedLoan: Loan = { ...this.selectedLoanForPayment, status: 'pagado' };
-             await this.dataService.updateLoan(updatedLoan);
+        // Check if fully paid (using new total)
+        // Recalculate balance because total changed and we paid
+        // NewBalance = (OldBalance + Interest) - Payment
+        const newBalance = (this.currentBalance + interestToAdd) - this.newPaymentAmount;
+
+        if (newBalance <= 0.01) { 
+             const completedLoan: Loan = { ...this.selectedLoanForPayment, status: 'pagado' };
+             await this.dataService.updateLoan(completedLoan);
         }
 
         if (this.selectedClient) await this.selectClient(this.selectedClient);
