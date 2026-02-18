@@ -55,11 +55,20 @@ import { ActivatedRoute } from '@angular/router';
               </div>
 
               <div class="flex-grow">
-                <p class="font-bold transition-all duration-300"
-                   [class.text-white]="selectedClient?.id === client.id"
-                   [class.text-slate-800]="selectedClient?.id !== client.id">
-                  {{ client.nombre }} {{ client.apellido }}
-                </p>
+                <div class="flex items-center gap-2">
+                  <p class="font-bold transition-all duration-300"
+                     [class.text-white]="selectedClient?.id === client.id"
+                     [class.text-slate-800]="selectedClient?.id !== client.id">
+                    {{ client.nombre }} {{ client.apellido }}
+                  </p>
+                  <span *ngIf="clientHasPendingLoans[client.id!]" 
+                        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider shrink-0"
+                        [ngClass]="selectedClient?.id === client.id ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-600'">
+                    <span class="w-1.5 h-1.5 rounded-full animate-pulse"
+                          [ngClass]="selectedClient?.id === client.id ? 'bg-white' : 'bg-amber-500'"></span>
+                    Activo
+                  </span>
+                </div>
                 <p class="text-xs transition-all duration-300"
                    [class.text-blue-100]="selectedClient?.id === client.id"
                    [class.text-slate-400]="selectedClient?.id !== client.id">
@@ -553,6 +562,7 @@ export class LoanManagementComponent implements OnInit {
   selectedClient: Client | null = null;
   showLoanForm: boolean = false;
   mobileShowDetail: boolean = false;
+  clientHasPendingLoans: { [clientId: number]: boolean } = {};
   newLoan: any = {
     monto: 0,
     porcentaje: 0,
@@ -597,7 +607,12 @@ export class LoanManagementComponent implements OnInit {
   async loadInitialData() {
     try {
       this.clients = await this.dataService.getClients() || [];
-      this.partners = await this.dataService.getPartners() || []; // Load partners
+      this.partners = await this.dataService.getPartners() || [];
+      // Check which clients have pending loans
+      for (const client of this.clients) {
+        const loans = await this.dataService.getLoans(client.id!);
+        this.clientHasPendingLoans[client.id!] = loans.some(l => l.status === 'pendiente' && l.active !== 0);
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -611,6 +626,8 @@ export class LoanManagementComponent implements OnInit {
       this.mobileShowDetail = true;
       this.loans = await this.dataService.getLoans(client.id!) || [];
       this.showLoanForm = false;
+      // Update pending loan status for sidebar badge
+      this.clientHasPendingLoans[client.id!] = this.loans.some(l => l.status === 'pendiente' && l.active !== 0);
       // Fetch all payments for cache to show balances
       this.loanPaymentsMap = {};
       for (const loan of this.loans) {
